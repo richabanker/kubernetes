@@ -1,5 +1,8 @@
+//go:build !windows
+// +build !windows
+
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2023 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,14 +17,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package openapi
+package pluginwatcher
 
-import "k8s.io/kube-openapi/pkg/validation/spec"
+import (
+	"os"
 
-// PrintColumnsKey is the key that defines which columns should be printed
-const PrintColumnsKey = "x-kubernetes-print-columns"
+	"github.com/fsnotify/fsnotify"
+)
 
-// GetPrintColumns looks for the open API extension for the display columns.
-func GetPrintColumns(extensions spec.Extensions) (string, bool) {
-	return extensions.GetString(PrintColumnsKey)
+func getStat(event fsnotify.Event) (os.FileInfo, error) {
+	return os.Stat(event.Name)
+}
+
+func getSocketPath(socketPath string) string {
+	return socketPath
 }
