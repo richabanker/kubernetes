@@ -78,7 +78,8 @@ const (
 
 	// owner: @roycaihw
 	// alpha: v1.20
-	//
+	// beta: v1.26
+	// GA: v1.29
 	// Assigns each kube-apiserver an ID in a cluster.
 	APIServerIdentity featuregate.Feature = "APIServerIdentity"
 
@@ -253,7 +254,7 @@ var defaultKubernetesFeatureGates = map[featuregate.Feature]featuregate.FeatureS
 
 	APIResponseCompression: {Default: true, PreRelease: featuregate.Beta},
 
-	APIServerIdentity: {Default: true, PreRelease: featuregate.Beta},
+	APIServerIdentity: {Default: true, PreRelease: featuregate.GA},
 
 	APIServerTracing: {Default: true, PreRelease: featuregate.Beta},
 

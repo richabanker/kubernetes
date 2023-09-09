@@ -26,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"golang.org/x/crypto/cryptobyte"
 
@@ -79,12 +78,11 @@ func restartAPIServer(ctx context.Context, node *v1.Node) error {
 	return nil
 }
 
-// This test requires that --feature-gates=APIServerIdentity=true be set on the apiserver
 var _ = SIGDescribe("kube-apiserver identity [Feature:APIServerIdentity]", func() {
 	f := framework.NewDefaultFramework("kube-apiserver-identity")
 	f.NamespacePodSecurityLevel = admissionapi.LevelPrivileged
 
-	ginkgo.It("kube-apiserver identity should persist after restart [Disruptive]", func(ctx context.Context) {
+	framework.ConformanceIt("kube-apiserver identity should persist after restart [Disruptive]", func(ctx context.Context) {
 		e2eskipper.SkipUnlessProviderIs("gce")
 
 		client := f.ClientSet
