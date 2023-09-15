@@ -122,8 +122,8 @@ func setStatusCondition(conditions *[]v1alpha1.StorageVersionCondition, newCondi
 	existingCondition.ObservedGeneration = newCondition.ObservedGeneration
 }
 
-// updateStorageVersionFor updates the storage version object for the resource.
-func updateStorageVersionFor(c Client, apiserverID string, gr schema.GroupResource, encodingVersion string, decodableVersions []string, servedVersions []string) error {
+// UpdateStorageVersionFor updates the storage version object for the resource.
+func UpdateStorageVersionFor(c Client, apiserverID string, gr schema.GroupResource, encodingVersion string, decodableVersions []string, servedVersions []string) error {
 	retries := 3
 	var retry int
 	var err error
