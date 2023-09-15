@@ -14,8 +14,10 @@ limitations under the License.
 package storageversion
 
 import (
+	apiserverinternalv1alpha1 "k8s.io/api/apiserverinternal/v1alpha1"
 	apiextensionshelpers "k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	genericstorageversion "k8s.io/apiserver/pkg/storageversion"
@@ -95,7 +97,7 @@ func (m *manager) updateCRDStorageVersion(crd *apiextensionsv1.CustomResourceDef
 		decodableVersions = append(decodableVersions, crd.Spec.Group+"/"+v.Name)
 	}
 
-	/* appendOwnerRefFunc := func(sv *apiserverinternalv1alpha1.StorageVersion) error {
+	appendOwnerRefFunc := func(sv *apiserverinternalv1alpha1.StorageVersion) error {
 		ref := metav1.OwnerReference{
 			APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
 			Kind:       "CustomResourceDefinition",
@@ -109,7 +111,7 @@ func (m *manager) updateCRDStorageVersion(crd *apiextensionsv1.CustomResourceDef
 		}
 		sv.OwnerReferences = append(sv.OwnerReferences, ref)
 		return nil
-	} */
+	}
 	return genericstorageversion.UpdateStorageVersionFor(
 		m.client,
 		m.apiserverID,
@@ -117,5 +119,6 @@ func (m *manager) updateCRDStorageVersion(crd *apiextensionsv1.CustomResourceDef
 		encodingVersion,
 		decodableVersions,
 		// TODO : check what to pass for servedVersion
-		nil)
+		nil,
+		appendOwnerRefFunc)
 }

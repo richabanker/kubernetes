@@ -35,6 +35,8 @@ type Client interface {
 	Get(context.Context, string, metav1.GetOptions) (*v1alpha1.StorageVersion, error)
 }
 
+type processStorageVersionFunc func(*v1alpha1.StorageVersion) error
+
 // SetCommonEncodingVersion updates the CommonEncodingVersion and the AllEncodingVersionsEqual
 // condition based on the StorageVersions.
 func SetCommonEncodingVersion(sv *v1alpha1.StorageVersion) {
@@ -123,12 +125,12 @@ func setStatusCondition(conditions *[]v1alpha1.StorageVersionCondition, newCondi
 }
 
 // UpdateStorageVersionFor updates the storage version object for the resource.
-func UpdateStorageVersionFor(c Client, apiserverID string, gr schema.GroupResource, encodingVersion string, decodableVersions []string, servedVersions []string) error {
+func UpdateStorageVersionFor(c Client, apiserverID string, gr schema.GroupResource, encodingVersion string, decodableVersions []string, servedVersions []string, postProcessFunc processStorageVersionFunc) error {
 	retries := 3
 	var retry int
 	var err error
 	for retry < retries {
-		err = singleUpdate(c, apiserverID, gr, encodingVersion, decodableVersions, servedVersions)
+		err = singleUpdate(c, apiserverID, gr, encodingVersion, decodableVersions, servedVersions, postProcessFunc)
 		if err == nil {
 			return nil
 		}
@@ -145,7 +147,7 @@ func UpdateStorageVersionFor(c Client, apiserverID string, gr schema.GroupResour
 	return err
 }
 
-func singleUpdate(c Client, apiserverID string, gr schema.GroupResource, encodingVersion string, decodableVersions []string, servedVersions []string) error {
+func singleUpdate(c Client, apiserverID string, gr schema.GroupResource, encodingVersion string, decodableVersions []string, servedVersions []string, postProcessFunc processStorageVersionFunc) error {
 	shouldCreate := false
 	name := fmt.Sprintf("%s.%s", gr.Group, gr.Resource)
 	sv, err := c.Get(context.TODO(), name, metav1.GetOptions{})
@@ -158,6 +160,11 @@ func singleUpdate(c Client, apiserverID string, gr schema.GroupResource, encodin
 		sv.ObjectMeta.Name = name
 	}
 	updatedSV := localUpdateStorageVersion(sv, apiserverID, encodingVersion, decodableVersions, servedVersions)
+	if postProcessFunc != nil {
+		if err := postProcessFunc(updatedSV); err != nil {
+			return err
+		}
+	}
 	if shouldCreate {
 		createdSV, err := c.Create(context.TODO(), updatedSV, metav1.CreateOptions{})
 		if err != nil {
