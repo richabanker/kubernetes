@@ -162,12 +162,16 @@ func InstallPathHandler(mux mux, path string, checks ...HealthChecker) {
 // InstallPathHandlerWithHealthyFunc is like InstallPathHandler, but calls firstTimeHealthy exactly once
 // when the handler succeeds for the first time.
 func InstallPathHandlerWithHealthyFunc(mux mux, path string, firstTimeHealthy func(), checks ...HealthChecker) {
+	klog.Infof("RICHAAA : found %d checks", len(checks))
+	for _,check := range checks {
+		klog.Infof("RICHAAA : check name =  %s", check.Name())
+	}
 	if len(checks) == 0 {
-		klog.V(5).Info("No default health checks specified. Installing the ping handler.")
+		klog.Info("No default health checks specified. Installing the ping handler.")
 		checks = []HealthChecker{PingHealthz}
 	}
 
-	klog.V(5).Infof("Installing health checkers for (%v): %v", path, formatQuoted(checkerNames(checks...)...))
+	klog.Infof("Installing health checkers for (%v): %v", path, formatQuoted(checkerNames(checks...)...))
 
 	name := strings.Split(strings.TrimPrefix(path, "/"), "/")[0]
 	mux.Handle(path,
@@ -220,6 +224,7 @@ func getExcludedChecks(r *http.Request) sets.String {
 func handleRootHealth(name string, firstTimeHealthy func(), checks ...HealthChecker) http.HandlerFunc {
 	var notifyOnce sync.Once
 	return func(w http.ResponseWriter, r *http.Request) {
+		klog.InfoS("RICHAAAA inside handleRootHealth()")
 		excluded := getExcludedChecks(r)
 		// failedVerboseLogOutput is for output to the log.  It indicates detailed failed output information for the log.
 		var failedVerboseLogOutput bytes.Buffer
@@ -228,6 +233,7 @@ func handleRootHealth(name string, firstTimeHealthy func(), checks ...HealthChec
 		for _, check := range checks {
 			// no-op the check if we've specified we want to exclude the check
 			if excluded.Has(check.Name()) {
+				klog.Infof("RICHAAA excluding check %s", check.Name())
 				excluded.Delete(check.Name())
 				fmt.Fprintf(&individualCheckOutput, "[+]%s excluded: ok\n", check.Name())
 				continue
@@ -237,22 +243,25 @@ func handleRootHealth(name string, firstTimeHealthy func(), checks ...HealthChec
 				// don't include the error since this endpoint is public.  If someone wants more detail
 				// they should have explicit permission to the detailed checks.
 				fmt.Fprintf(&individualCheckOutput, "[-]%s failed: reason withheld\n", check.Name())
+				klog.Infof("RICHAAA check failed %s, err: %v", check.Name(), err)
 				// but we do want detailed information for our log
 				fmt.Fprintf(&failedVerboseLogOutput, "[-]%s failed: %v\n", check.Name(), err)
 				failedChecks = append(failedChecks, check.Name())
 			} else {
 				slis.ObserveHealthcheck(context.Background(), check.Name(), name, slis.Success)
+				klog.Infof("RICHAAA check succeeded %s", check.Name())
 				fmt.Fprintf(&individualCheckOutput, "[+]%s ok\n", check.Name())
 			}
 		}
 		if excluded.Len() > 0 {
+			klog.Infof("RICHAAA some health checks cannot be excluded for %s", formatQuoted(excluded.List()...))
 			fmt.Fprintf(&individualCheckOutput, "warn: some health checks cannot be excluded: no matches for %s\n", formatQuoted(excluded.List()...))
 			klog.V(6).Infof("cannot exclude some health checks, no health checks are installed matching %s",
 				formatQuoted(excluded.List()...))
 		}
 		// always be verbose on failure
 		if len(failedChecks) > 0 {
-			klog.V(2).Infof("%s check failed: %s\n%v", strings.Join(failedChecks, ","), name, failedVerboseLogOutput.String())
+			klog.Infof("%s RICHAAA check failed: %s\n%v", strings.Join(failedChecks, ","), name, failedVerboseLogOutput.String())
 			httplog.SetStacktracePredicate(r.Context(), func(int) bool { return false })
 			http.Error(w, fmt.Sprintf("%s%s check failed", individualCheckOutput.String(), name), http.StatusInternalServerError)
 			return
@@ -271,6 +280,7 @@ func handleRootHealth(name string, firstTimeHealthy func(), checks ...HealthChec
 		}
 
 		individualCheckOutput.WriteTo(w)
+		klog.Infof("RICHAAA %s check passed", name)
 		fmt.Fprintf(w, "%s check passed\n", name)
 	}
 }

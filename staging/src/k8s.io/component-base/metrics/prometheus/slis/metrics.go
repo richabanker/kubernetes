@@ -19,6 +19,7 @@ package slis
 import (
 	"context"
 	k8smetrics "k8s.io/component-base/metrics"
+	"k8s.io/klog/v2"
 )
 
 type HealthcheckStatus string
@@ -64,6 +65,7 @@ func ResetHealthMetrics() {
 }
 
 func ObserveHealthcheck(ctx context.Context, name string, healthcheckType string, status HealthcheckStatus) error {
+	klog.InfoS("RICHAAA recording healthcheck now")
 	if status == Success {
 		healthcheck.WithContext(ctx).WithLabelValues(name, healthcheckType).Set(1)
 	} else {

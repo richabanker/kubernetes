@@ -370,7 +370,7 @@ func (s *Server) InstallDefaultHandlers() {
 		healthz.LogHealthz,
 		healthz.NamedCheck("syncloop", s.syncLoopHealthCheck),
 	)
-
+	klog.InfoS("RICHAAA adding the SLIsMetrics handler")
 	slis.SLIMetricsWithReset{}.Install(s.restfulCont)
 
 	s.addMetricsBucketMatcher("pods")
@@ -652,6 +652,7 @@ func (s *Server) InstallProfilingHandler(enableProfilingLogHandler bool, enableC
 
 // Checks if kubelet's sync loop  that updates containers is working.
 func (s *Server) syncLoopHealthCheck(req *http.Request) error {
+	klog.InfoS("RICHAAA starting syncLoopHealthCheck")
 	duration := s.host.ResyncInterval() * 2
 	minDuration := time.Minute * 5
 	if duration < minDuration {
