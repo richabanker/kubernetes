@@ -26,6 +26,7 @@ import (
 
 	apiserverinternalv1alpha1 "k8s.io/api/apiserverinternal/v1alpha1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apiextensions-apiserver/test/integration/fixtures"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -67,7 +68,7 @@ func TestStorageVersionCustomResource(t *testing.T) {
 	if err := wait.PollUntilContextTimeout(context.TODO(), 100*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
 		sv, err := kubeclient.InternalV1alpha1().StorageVersions().Get(context.TODO(), gr, metav1.GetOptions{})
 		if err != nil {
-			lastErr = fmt.Errorf("failed to get storage version: %v", err)
+			lastErr = fmt.Errorf("failed to get storage version: %w", err)
 			return false, nil
 		}
 		ref := metav1.OwnerReference{
@@ -139,8 +140,8 @@ func TestStorageVersionCustomResource(t *testing.T) {
 	}
 
 	// cleanup
-	if err := crdClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), crd.Name, metav1.DeleteOptions{}); err != nil {
-		t.Errorf("failed to delete crd: %v", err)
+	if err := fixtures.DeleteV1CustomResourceDefinition(crd, crdClient); err != nil {
+		t.Fatal(err)
 	}
 	if err := kubeclient.InternalV1alpha1().StorageVersions().Delete(context.TODO(), gr, metav1.DeleteOptions{}); err != nil {
 		t.Errorf("failed to delete storage version: %v", err)
@@ -171,7 +172,7 @@ func TestStorageVersionMultipleCRDs(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			createdCRD, err := crdClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), crd.Name, metav1.GetOptions{})
 			if err != nil {
-				errCh <- fmt.Errorf("failed to get crd: %v", err)
+				errCh <- fmt.Errorf("failed to get crd: %w", err)
 				return
 			}
 
@@ -181,7 +182,7 @@ func TestStorageVersionMultipleCRDs(t *testing.T) {
 			createdCRD.Spec.Versions[i].Storage = false
 			createdCRD.Spec.Versions = append(createdCRD.Spec.Versions, newVersion)
 			if _, err := crdClient.ApiextensionsV1().CustomResourceDefinitions().Update(context.TODO(), createdCRD, metav1.UpdateOptions{}); err != nil {
-				errCh <- fmt.Errorf("failed to update crd: %v", err)
+				errCh <- fmt.Errorf("failed to update crd: %w", err)
 				return
 			}
 			cr := &unstructured.Unstructured{}
@@ -189,7 +190,7 @@ func TestStorageVersionMultipleCRDs(t *testing.T) {
 			cr.SetAPIVersion(fmt.Sprintf("%s/v1", crd.Spec.Group))
 			cr.SetKind(crd.Spec.Names.Kind)
 			if _, err = dynamicClient.Resource(gvr).Namespace("default").Create(context.TODO(), cr, metav1.CreateOptions{}); err != nil {
-				errCh <- fmt.Errorf("unexpected error creating cr for version %v: %v", newVersion.Name, err)
+				errCh <- fmt.Errorf("unexpected error creating cr for version %v: %w", newVersion.Name, err)
 				return
 			}
 		}
@@ -212,7 +213,7 @@ func TestStorageVersionMultipleCRDs(t *testing.T) {
 
 		sv, err := kubeclient.InternalV1alpha1().StorageVersions().Get(context.TODO(), gr, metav1.GetOptions{})
 		if err != nil {
-			lastErr = fmt.Errorf("failed to get storage version: %v", err)
+			lastErr = fmt.Errorf("failed to get storage version: %w", err)
 			return false, nil
 		}
 		if len(sv.Status.StorageVersions) != 1 {
@@ -235,14 +236,14 @@ func TestStorageVersionMultipleCRDs(t *testing.T) {
 	}
 
 	// cleanup
-	if err := crdClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), crd.Name, metav1.DeleteOptions{}); err != nil {
-		t.Errorf("failed to delete crd: %v", err)
+	if err := fixtures.DeleteV1CustomResourceDefinition(crd, crdClient); err != nil {
+		t.Fatal(err)
 	}
 	if err := kubeclient.InternalV1alpha1().StorageVersions().Delete(context.TODO(), gr, metav1.DeleteOptions{}); err != nil {
 		t.Errorf("failed to delete storage version: %v", err)
 	}
-	if err := crdClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), newCRD.Name, metav1.DeleteOptions{}); err != nil {
-		t.Errorf("failed to delete crd: %v", err)
+	if err := fixtures.DeleteV1CustomResourceDefinition(newCRD, crdClient); err != nil {
+		t.Fatal(err)
 	}
 	gr = newCRD.Spec.Group + "." + newCRD.Spec.Names.Plural
 	if err := kubeclient.InternalV1alpha1().StorageVersions().Delete(context.TODO(), gr, metav1.DeleteOptions{}); err != nil {
@@ -295,7 +296,7 @@ func TestWatchAndMutateStorageVersionCRDs(t *testing.T) {
 
 		sv, err := kubeclient.InternalV1alpha1().StorageVersions().Get(context.TODO(), gr, metav1.GetOptions{})
 		if err != nil {
-			lastErr = fmt.Errorf("failed to get storage version: %v", err)
+			lastErr = fmt.Errorf("failed to get storage version: %w", err)
 			return false, nil
 		}
 		storageVersion := sv.Status.StorageVersions[0]
@@ -315,8 +316,8 @@ func TestWatchAndMutateStorageVersionCRDs(t *testing.T) {
 	}
 
 	// cleanup
-	if err := crdClient.ApiextensionsV1().CustomResourceDefinitions().Delete(context.TODO(), crd.Name, metav1.DeleteOptions{}); err != nil {
-		t.Errorf("failed to delete crd: %v", err)
+	if err := fixtures.DeleteV1CustomResourceDefinition(crd, crdClient); err != nil {
+		t.Fatal(err)
 	}
 	if err := kubeclient.InternalV1alpha1().StorageVersions().Delete(context.TODO(), gr, metav1.DeleteOptions{}); err != nil {
 		t.Errorf("failed to delete storage version: %v", err)

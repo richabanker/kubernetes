@@ -198,7 +198,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		utilfeature.DefaultFeatureGate.Enabled(features.APIServerIdentity) {
 		kubeclientset, err := kubernetes.NewForConfig(s.GenericAPIServer.LoopbackClientConfig)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create clientset for storage versions: %v", err)
+			return nil, fmt.Errorf("failed to create clientset for storage versions: %w", err)
 		}
 		sc := kubeclientset.InternalV1alpha1().StorageVersions()
 		storageVersionManager = storageversion.NewManager(sc, c.GenericConfig.APIServerID)
@@ -269,6 +269,11 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		go nonStructuralSchemaController.Run(5, context.StopCh)
 		go apiApprovalController.Run(5, context.StopCh)
 		go finalizingController.Run(5, context.StopCh)
+
+		if utilfeature.DefaultFeatureGate.Enabled(features.StorageVersionAPI) &&
+			utilfeature.DefaultFeatureGate.Enabled(features.APIServerIdentity) {
+			go crdHandler.storageVersionManager.RunUpdateLoop(context.StopCh)
+		}
 
 		discoverySyncedCh := make(chan struct{})
 		go discoveryController.Run(context.StopCh, discoverySyncedCh)
