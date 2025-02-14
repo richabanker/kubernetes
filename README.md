@@ -104,3 +104,5 @@ The [Kubernetes Enhancements repo](https://github.com/kubernetes/enhancements) p
 This [Kubernetes repo](https://github.com/kubernetes/kubernetes) has a Gemini generated code review bot.
 
 The bot uses the Gemini LLM to generate code reviews for pull requests.
+
+Hope this helps you get started with Kubernetes.
