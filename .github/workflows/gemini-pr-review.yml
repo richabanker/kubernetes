@@ -33,12 +33,20 @@ jobs:
           encoded_diff=$(echo "$diff" | base64)
           echo "$encoded_diff" > diff.b64
 
+      - name: Get PR diff (Base64 Encode)
+        id: get_diff
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          diff=$(git diff origin/${{ github.event.pull_request.base.ref }} HEAD)
+          encoded_diff=$(echo "$diff" | base64)
+          echo "$encoded_diff" > diff.b64
+
       - name: Gemini API Call
         id: gemini_review_call
         run: |
           python <<EOF
           import os
-          import shlex  # Import shlex for quoting
+          import shlex
           import google.generativeai as genai
           import base64
           from tenacity import retry, stop_after_attempt, wait_fixed
@@ -71,12 +79,14 @@ jobs:
                           prompt = f"Review this line of code for potential issues and provide feedback:\n\n```\n{line_no} {line.action} {line.value}\n```"
                           try:
                               review_text = generate_review(prompt)
-                              # Use GitHub's API to post a comment on this specific line with proper quoting
-                              os.system(f"gh pr review ${{ github.event.pull_request.number }} --comment {shlex.quote(f'{patched_file.path}:{line_no}')} --body {shlex.quote(review_text)}") 
+                              if line_no is not None and isinstance(line_no, int) and patched_file.path and review_text and line.action and line.value:
+                                  os.system(f"gh pr review ${{ github.event.pull_request.number }} --comment {shlex.quote(f'{patched_file.path}:{line_no}')} --body {shlex.quote(review_text)}")
+                              else:
+                                  print(f"Skipping comment due to invalid data: line_no={line_no}, path={patched_file.path}, review_text={review_text}, line.action = {line.action}, line.value = {line.value}")
+
                           except Exception as e:
                               print(f"Error generating review: {e}")
                               traceback.print_exc()
-                              # Consider logging the error or posting a general comment about the failure
 
           EOF
           exit 0
