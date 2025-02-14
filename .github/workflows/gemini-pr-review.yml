@@ -108,4 +108,4 @@ jobs:
       - name: Empty review message
         if: steps.gemini_review_call.outputs.REVIEW == ''
         run: |
-          echo "Gemini review was empty, or no comments were posted"
+          echo "Gemini review was empty, or no comments were posted" 
