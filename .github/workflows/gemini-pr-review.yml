@@ -67,6 +67,7 @@ jobs:
                   for line in hunk:
                       if line.is_added or line.is_removed or line.is_context:
                           line_no = line.target_line_no if line.is_added else line.source_line_no
+                          print(f"Debug: line_no={line_no}, patched_file.path={patched_file.path}") #added debug print
                           line_action = '+' if line.is_added else '-' if line.is_removed else ' '
                           prompt = f"Review this line of code for potential issues and provide feedback:\n\n```{line_no} {line_action} {line.value}\n```"
                           try:
