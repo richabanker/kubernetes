@@ -47,10 +47,10 @@ jobs:
 
           genai.configure(api_key=os.environ['GEMINI_API_KEY'])
           model = genai.GenerativeModel('gemini-pro')
-          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/')[0], repo=os.environ['GITHUB_REPOSITORY'].split('/')[1], token=os.environ['GH_TOKEN'])
+          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/'), repo=os.environ['GITHUB_REPOSITORY'].split('/'), token=os.environ['GH_TOKEN'])
           commit_id = os.environ['GITHUB_SHA']
 
-          @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
+          @retry(stop=stop_after_attempt(3), wait_fixed(5))
           def generate_review(prompt):
               print("Starting Gemini API call...")
               start_time = time.time()
