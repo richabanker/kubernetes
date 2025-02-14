@@ -47,7 +47,8 @@ jobs:
 
           genai.configure(api_key=os.environ['GEMINI_API_KEY'])
           model = genai.GenerativeModel('gemini-pro')
-          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/'), repo=os.environ['GITHUB_REPOSITORY'].split('/'), token=os.environ['GH_TOKEN'])
+          owner, repo = os.environ['GITHUB_REPOSITORY'].split('/')
+          gh = GhApi(owner=owner, repo=repo, token=os.environ['GH_TOKEN'])
           commit_id = os.environ['GITHUB_SHA']
 
           @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
@@ -71,7 +72,7 @@ jobs:
                       if line.is_added or line.is_removed:
                           diff_position +=1;
                           line_no = line.target_line_no if line.is_added else line.source_line_no
-                          print(f"Debug: line_no={line_no}, patched_file.path={patched_file.path}, diff_position={diff_position}")
+                          print(f"echo Debug: line_no={line_no}, patched_file.path={patched_file.path}, diff_position={diff_position}")
                           line_action = '+' if line.is_added else '-' if line.is_removed else ' '
                           prompt = f"Review this line of code for potential issues and provide feedback:\n\n```{line_no} {line_action} {line.value}\n```"
                           try:
@@ -108,4 +109,4 @@ jobs:
       - name: Empty review message
         if: steps.gemini_review_call.outputs.REVIEW == ''
         run: |
-          echo "Gemini review was empty, or no comments were posted" 
+          echo "Gemini review was empty, or no comments were posted"
