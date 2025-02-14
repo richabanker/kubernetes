@@ -73,13 +73,15 @@ jobs:
                           try:
                               review_text = generate_review(prompt)
                               if line_no is not None and isinstance(line_no, int) and patched_file.path and review_text and line.value:
-                                  comment_string = f'{patched_file.path}:{line_no}'
-                                  quoted_comment = shlex.quote(comment_string)
-                                  quoted_body = shlex.quote(review_text)
-                                  print(f"Debug: Quoted Comment: {quoted_comment}")
-                                  print(f"Debug: Quoted Body: {quoted_body}")
-                                  print(f"Debug: gh pr review ${{ github.event.pull_request.number }} --comment {quoted_comment} --body {quoted_body}")
-                                  os.system(f"/bin/bash -c \"gh pr review ${{ github.event.pull_request.number }} --comment {quoted_comment} --body {quoted_body}\"")
+                                  # Construct the full command as a single string
+                                  command = f"gh pr review ${{ github.event.pull_request.number }} --comment '{patched_file.path}:{line_no}' --body '{review_text}'"
+
+                                  # Escape any special characters in the command
+                                  escaped_command = shlex.quote(command)
+
+                                  # Execute the command using os.system
+                                  print(f"Debug: Final Escaped Command: {escaped_command}")
+                                  os.system(escaped_command)
                               else:
                                   print(f"Skipping comment due to invalid data: line_no={line_no}, path={patched_file.path}, review_text={review_text}, line.value = {line.value}")
 
