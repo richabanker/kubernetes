@@ -47,7 +47,7 @@ jobs:
 
           genai.configure(api_key=os.environ['GEMINI_API_KEY'])
           model = genai.GenerativeModel('gemini-pro')
-          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/'), repo=os.environ['GITHUB_REPOSITORY'].split('/'), token=os.environ['GH_TOKEN'])
+          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/')[0], repo=os.environ['GITHUB_REPOSITORY'].split('/')[1], token=os.environ['GH_TOKEN'])
           commit_id = os.environ['GITHUB_SHA']
 
           @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
@@ -65,10 +65,11 @@ jobs:
 
           patch_set = PatchSet(diff_decoded)
           for patched_file in patch_set:
-              diff_position = 1
               for hunk in patched_file:
-                  for line in hunk:
-                      if line.is_added or line.is_removed or line.is_context:
+                  diff_position = 0
+                  for line in hunk.lines():
+                      if line.is_added or line.is_removed:
+                          diff_position +=1;
                           line_no = line.target_line_no if line.is_added else line.source_line_no
                           print(f"Debug: line_no={line_no}, patched_file.path={patched_file.path}, diff_position={diff_position}")
                           line_action = '+' if line.is_added else '-' if line.is_removed else ' '
@@ -94,7 +95,6 @@ jobs:
                           except Exception as e:
                               print(f"Error generating review: {e}")
                               traceback.print_exc()
-                          diff_position += 1
 
           EOF
         env:
