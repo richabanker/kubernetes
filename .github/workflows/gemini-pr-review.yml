@@ -47,7 +47,8 @@ jobs:
 
           genai.configure(api_key=os.environ['GEMINI_API_KEY'])
           model = genai.GenerativeModel('gemini-pro')
-          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/')[0], repo=os.environ['GITHUB_REPOSITORY'].split('/')[1], token=os.environ['GH_TOKEN'])
+          gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/'), repo=os.environ['GITHUB_REPOSITORY'].split('/'), token=os.environ['GH_TOKEN'])
+          commit_id = os.environ['GITHUB_SHA']
 
           @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
           def generate_review(prompt):
@@ -64,11 +65,12 @@ jobs:
 
           patch_set = PatchSet(diff_decoded)
           for patched_file in patch_set:
+              diff_position = 1
               for hunk in patched_file:
                   for line in hunk:
                       if line.is_added or line.is_removed or line.is_context:
                           line_no = line.target_line_no if line.is_added else line.source_line_no
-                          print(f"Debug: line_no={line_no}, patched_file.path={patched_file.path}")
+                          print(f"Debug: line_no={line_no}, patched_file.path={patched_file.path}, diff_position={diff_position}")
                           line_action = '+' if line.is_added else '-' if line.is_removed else ' '
                           prompt = f"Review this line of code for potential issues and provide feedback:\n\n```{line_no} {line_action} {line.value}\n```"
                           try:
@@ -79,19 +81,20 @@ jobs:
                                           pull_number=int(os.environ['GITHUB_EVENT_PULL_REQUEST_NUMBER']),
                                           body=review_text,
                                           path=patched_file.path,
-                                          line=line_no,
+                                          position=diff_position,
+                                          commit_id=commit_id,
                                       )
-                                      print(f"Comment posted on {patched_file.path}:{line_no}")
+                                      print(f"Comment posted on {patched_file.path}:{line_no} position {diff_position}")
                                   except Exception as gh_err:
                                       print(f"GitHub API error: {gh_err}")
                                       traceback.print_exc()
 
                               else:
                                   print(f"Skipping comment due to invalid data: line_no={line_no}, path={patched_file.path}, review_text={review_text}, line.value = {line.value}")
-
                           except Exception as e:
                               print(f"Error generating review: {e}")
                               traceback.print_exc()
+                          diff_position += 1
 
           EOF
         env:
@@ -99,6 +102,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
           GRPC_GO_KEEP_ALIVE_TIMEOUT_MS: "600000"
 
       - name: Empty review message
