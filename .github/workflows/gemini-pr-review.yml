@@ -50,7 +50,7 @@ jobs:
           gh = GhApi(owner=os.environ['GITHUB_REPOSITORY'].split('/'), repo=os.environ['GITHUB_REPOSITORY'].split('/'), token=os.environ['GH_TOKEN'])
           commit_id = os.environ['GITHUB_SHA']
 
-          @retry(stop=stop_after_attempt(3), wait_fixed(5))
+          @retry(stop=stop_after_attempt(3), wait=wait_fixed(5))
           def generate_review(prompt):
               print("Starting Gemini API call...")
               start_time = time.time()
