@@ -6,4 +6,4 @@ The bot uses the Gemini LLM to generate code reviews for pull requests.
 
 The bot is enabled by default on the Kubernetes repo.
 
-## TODO to disable the bot
+## TODO to disable the bot 
