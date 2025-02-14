@@ -38,6 +38,7 @@ jobs:
         run: |
           python <<EOF
           import os
+          import shlex  # Import shlex for quoting
           import google.generativeai as genai
           import base64
           from tenacity import retry, stop_after_attempt, wait_fixed
@@ -70,10 +71,8 @@ jobs:
                           prompt = f"Review this line of code for potential issues and provide feedback:\n\n```\n{line_no} {line.action} {line.value}\n```"
                           try:
                               review_text = generate_review(prompt)
-                              # Use GitHub's API to post a comment on this specific line
-                              os.system(f"gh pr review ${{ github.event.pull_request.number }} \
-                                  --comment-at \"{patched_file.path}:{line_no}\" \
-                                  --body \"{review_text}\"")
+                              # Use GitHub's API to post a comment on this specific line with proper quoting
+                              os.system(f"gh pr review ${{ github.event.pull_request.number }} --comment {shlex.quote(f'{patched_file.path}:{line_no}')} --body {shlex.quote(review_text)}") 
                           except Exception as e:
                               print(f"Error generating review: {e}")
                               traceback.print_exc()
