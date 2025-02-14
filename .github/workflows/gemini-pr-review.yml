@@ -67,7 +67,7 @@ jobs:
           for patched_file in patch_set:
               for hunk in patched_file:
                   diff_position = 0
-                  for line in hunk.lines():
+                  for line in hunk:
                       if line.is_added or line.is_removed:
                           diff_position +=1;
                           line_no = line.target_line_no if line.is_added else line.source_line_no
