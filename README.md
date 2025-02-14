@@ -105,4 +105,4 @@ This [Kubernetes repo](https://github.com/kubernetes/kubernetes) has a Gemini ge
 
 The bot uses the Gemini LLM to generate code reviews for pull requests.
 
-Hope this helps you get started with Kubernetes. 
+Hope this helps you get started with Kubernetes.
