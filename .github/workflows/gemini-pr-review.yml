@@ -68,7 +68,7 @@ jobs:
                       if line.is_added or line.is_removed or line.is_context:
                           line_no = line.target_line_no if line.is_added else line.source_line_no
                           line_action = '+' if line.is_added else '-' if line.is_removed else ' '
-                          prompt = f"Review this line of code for potential issues and provide feedback:\n\n```\n{line_no} {line_action} {line.value}\n```"
+                          prompt = f"Review this line of code for potential issues and provide feedback:\n\n```{line_no} {line_action} {line.value}\n```"
                           try:
                               review_text = generate_review(prompt)
                               if line_no is not None and isinstance(line_no, int) and patched_file.path and review_text and line.value:
