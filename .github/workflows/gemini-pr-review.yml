@@ -67,13 +67,14 @@ jobs:
                   for line in hunk:
                       if line.is_added or line.is_removed or line.is_context:
                           line_no = line.target_line_no if line.is_added else line.source_line_no
-                          prompt = f"Review this line of code for potential issues and provide feedback:\n\n```\n{line_no} {line.action} {line.value}\n```"
+                          line_action = '+' if line.is_added else '-' if line.is_removed else ' '
+                          prompt = f"Review this line of code for potential issues and provide feedback:\n\n```\n{line_no} {line_action} {line.value}\n```"
                           try:
                               review_text = generate_review(prompt)
-                              if line_no is not None and isinstance(line_no, int) and patched_file.path and review_text and line.action and line.value:
+                              if line_no is not None and isinstance(line_no, int) and patched_file.path and review_text and line.value:
                                   os.system(f"gh pr review ${{ github.event.pull_request.number }} --comment {shlex.quote(f'{patched_file.path}:{line_no}')} --body {shlex.quote(review_text)}")
                               else:
-                                  print(f"Skipping comment due to invalid data: line_no={line_no}, path={patched_file.path}, review_text={review_text}, line.action = {line.action}, line.value = {line.value}")
+                                  print(f"Skipping comment due to invalid data: line_no={line_no}, path={patched_file.path}, review_text={review_text}, line.value = {line.value}")
 
                           except Exception as e:
                               print(f"Error generating review: {e}")
