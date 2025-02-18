@@ -38,13 +38,13 @@ def download_and_combine_guidelines(bucket_name, prefix):
         storage_client = storage.Client()
         bucket = storage_client.bucket(bucket_name)
         blobs = bucket.list_blobs(prefix=prefix)  # Use prefix for efficiency
-        
+
         guidelines_content = ""
         for blob in blobs:
             if blob.name.endswith(".md"):
                 guidelines_content += blob.download_as_text() + "\n\n"
         return guidelines_content
-        
+
     except Exception as e:
         print(f"Error downloading or combining guidelines: {e}")
 
@@ -117,6 +117,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
 
 def post_github_review_comments(repo_name, pr_number, diff_file, review_comment, github_token):
     """Posts review comments to GitHub PR, annotating specific lines."""
+    global total_comments_posted  # Declare total_comments_posted as global
     g = Github(github_token)
     repo = g.get_repo(repo_name)
     pr = repo.get_pull(pr_number)
@@ -142,15 +143,20 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             try:
                 corrected_line_num = None
                 right_side_line = 0
+                current_line = 0
 
                 for diff_line in diff_lines:
                     if diff_line.startswith("@@"):
                         # Extract right-side line number from hunk info
-                        right_side_line = int(diff_line.split("+").split(",")) - 1
+                        hunk_info = diff_line.split("@@")[1].strip()
+                        right_side_info = hunk_info.split("+")[1].split(" ")[0]
+                        right_side_line = int(right_side_info.split(",")[0])
+                        current_line = right_side_line -1
+
                     elif diff_line.startswith("+"):
-                        right_side_line += 1
-                        if right_side_line == line_num:
-                            corrected_line_num = right_side_line
+                        current_line += 1
+                        if current_line == line_num:
+                            corrected_line_num = current_line
                             break
 
                 if corrected_line_num:
