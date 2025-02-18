@@ -2,6 +2,7 @@ import google.generativeai as genai
 import os
 from github import Github
 from google.cloud import storage
+import re
 
 def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
     """Retrieves diff information for each file in the latest commit of a PR, excluding test files."""
@@ -83,8 +84,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
 
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
     Point out potential issues, based on the guidelines and the previous PR comments history.
-    Keep the review concise.
-
+    If you see lines that have issues, mention the line number in the format 'line <number>: <comment>'.
     ```diff
     {diff}
     ```
@@ -109,19 +109,18 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         latest_commit = commits[-1]
 
         # Parse the review comment for line number annotations
-        lines_to_comment = []
+        line_comments = []
         for line in review_comment.split('\n'):
-            if "line" in line.lower() and ":" in line:
-                try:
-                    line_num = int(line.lower().split("line")[1].split(":")[0].strip())
-                    lines_to_comment.append(line_num)
-                except ValueError:
-                    continue
+            match = re.search(r"line (\d+): (.*)", line, re.IGNORECASE)
+            if match:
+                line_num = int(match.group(1))
+                comment = match.group(2).strip()
+                line_comments.append((line_num, comment))
 
-        if lines_to_comment:
-            for line_num in lines_to_comment:
+        if line_comments:
+            for line_num, comment in line_comments:
                 try:
-                    pr.create_review_comment(body=review_comment, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
+                    pr.create_review_comment(body=comment, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
                 except Exception as e:
                     print(f"ERROR: Failed to create review comment for line {line_num} in {diff_file.filename}: {e}")
             print(f"Review comments for {diff_file.filename} posted successfully.")
