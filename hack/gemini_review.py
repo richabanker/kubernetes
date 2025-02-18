@@ -1,6 +1,7 @@
 import google.generativeai as genai
 import os
 from github import Github
+from google.cloud import storage
 
 def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
     """Retrieves diff information for each file in the latest commit of a PR, excluding test files."""
@@ -25,10 +26,45 @@ def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
         print(f"Error getting diff files from latest commit: {e}")
         return None
 
-def generate_gemini_review_with_annotations(diff_file, api_key):
-    """Generates a code review with annotations for a single file using the Gemini API."""
+def download_and_combine_guidelines(bucket_name, prefix):
+    """Downloads markdown files from GCS using the google-cloud-storage library."""
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blobs = bucket.list_blobs(prefix=prefix)  # Use prefix for efficiency
+
+        guidelines_content = ""
+        for blob in blobs:
+            if blob.name.endswith(".md"):
+                guidelines_content += blob.download_as_text() + "\n\n"
+        return guidelines_content
+
+    except Exception as e:
+        print(f"Error downloading or combining guidelines: {e}")
+        return ""
+
+def download_and_combine_pr_comments(bucket_name, prefix):
+    """Downloads text files from GCS using the google-cloud-storage library."""
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blobs = bucket.list_blobs(prefix=prefix)  # Use prefix for efficiency
+
+        pr_comments_content = ""
+        # TODO: Skip for now, since it is too large
+        # for blob in blobs:
+        #     if blob.name.endswith(".txt"):
+        #         pr_comments_content += blob.download_as_text() + "\n\n"
+        return pr_comments_content
+
+    except Exception as e:
+        print(f"Error downloading or combining PR comments: {e}")
+        return ""
+
+def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_comments):
+    """Generates a code review with annotations, incorporating guidelines."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-2.0-flash')
 
     diff = diff_file.patch
     max_diff_length = 20000  # Adjust based on token count
@@ -37,15 +73,23 @@ def generate_gemini_review_with_annotations(diff_file, api_key):
         diff += "\n... (truncated due to length limit) ..."
 
     prompt = f"""
+    The following are the API review guidelines:
+
+    {guidelines}
+
+    The following are the previous PR comments history:
+
+    {pr_comments}
+
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
-    Point out potential issues, suggest improvements, and highlight good practices.
-    For each issue or suggestion, specify the line numbers from the diff where the change occurs.
+    Point out potential issues, based on the guidelines and the previous PR comments history.
     Keep the review concise.
 
     ```diff
     {diff}
     ```
     """
+    # print("total_tokens: ", model.count_tokens(prompt))
     response = model.generate_content(prompt)
     return response.text if response.text else None
 
@@ -94,14 +138,23 @@ def main():
     repo_name = os.environ.get('GITHUB_REPOSITORY')
     github_token = os.environ.get('GITHUB_TOKEN')
 
+    # Use the GCS client library
+    guidelines = download_and_combine_guidelines("hackathon-2025-sme-code-review-train", "guidelines/")
+    if not guidelines:
+        print("Warning: No guidelines loaded.  Review will proceed without guidelines.")
+
     diff_files = get_pr_latest_commit_diff_files(repo_name, pr_number, github_token)
 
     if diff_files is None:
         print("Failed to retrieve PR diff files from latest commit. Exiting.")
         return
 
+    pr_comments = download_and_combine_pr_comments("hackathon-2025-sme-code-review-train", "pr_comments/")
+    if not pr_comments:
+        print("Warning: No PR comments loaded. Review will proceed without PR comments history.")
+
     for diff_file in diff_files:
-        review_comment = generate_gemini_review_with_annotations(diff_file, api_key)
+        review_comment = generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_comments)
         post_github_review_comments(repo_name, pr_number, diff_file, review_comment, github_token)
 
 if __name__ == "__main__":
