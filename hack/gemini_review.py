@@ -83,78 +83,59 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     {pr_comments}
 
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
-    Point out potential issues, based on the guidelines and the previous PR comments history.
+    Point out potential improvements and suggest changes, based on the guidelines and the previous PR comments history.
+    Only suggest a change if there is a clear improvement that can be made.
     If you see lines that have issues, mention the line number in the format 'line <number>: <comment>'.
+    Do not post generic comments that don't suggest specific improvements.
     ```diff
     {diff}
     ```
     """
-    # print("total_tokens: ", model.count_tokens(prompt))
     response = model.generate_content(prompt)
     return response.text if response.text else None
 
 def post_github_review_comments(repo_name, pr_number, diff_file, review_comment, github_token):
-    """Posts review comments to a GitHub pull request, annotating specific lines.
-    Limits the number of comments per file to 10.
-    """
+    """Posts review comments to a GitHub pull request, annotating specific lines."""
     g = Github(github_token)
     repo = g.get_repo(repo_name)
     pr = repo.get_pull(pr_number)
-    max_comments_per_file = 10  # Set the limit here
 
     if review_comment:
         commits = list(pr.get_commits())
         if not commits:
+            print(f"WARNING: No commits found for PR {pr_number}. Posting general issue comment for {diff_file.filename}.")
             pr.create_issue_comment(f"Review for {diff_file.filename}:\n{review_comment}")
             return
 
         latest_commit = commits[-1]
-        line_comments = []
+
+        # Parse the review comment for line number annotations
+        lines_to_comment = []
+        comments = []
         for line in review_comment.split('\n'):
-            match = re.search(r"line\s*(\d+)\s*:?\s*(.*)", line, re.IGNORECASE)  
-            if match:
-                line_num = int(match.group(1))
-                comment = match.group(2).strip()
-                line_comments.append((line_num, comment))
-
-        if line_comments:
-            diff_lines = diff_file.patch.splitlines()
-            diff_line_numbers = []
-            original_file_line_num = 0  # Initialize here
-
-            for line in diff_lines:
-                if line.startswith("@@"):
-                    # Extract the line number from the '@@' line
-                    match = re.search(r"@@ -\+,\+ \+(\+),\+ @@", line)
-                    if match:
-                        original_file_line_num = int(match.group(1)) 
-                elif line.startswith("+"):
-                    # Only increment for additions
-                    original_file_line_num += 1
-                    diff_line_numbers.append(original_file_line_num)
-                elif line.startswith(" "):
-                    original_file_line_num += 1
-
-            comment_count = 0
-            for original_line_num, comment in line_comments:
-                if comment_count >= max_comments_per_file:
-                    print(f"Reached the maximum number of comments ({max_comments_per_file}) for {diff_file.filename}.")
-                    break 
-
+            if "line" in line.lower() and ":" in line:
                 try:
-                    diff_index = diff_line_numbers.index(original_line_num) + 1 
-                    pr.create_review_comment(body=comment, commit=latest_commit, path=diff_file.filename, line=diff_index, side="RIGHT")
-                    comment_count += 1
+                    line_num = int(line.lower().split("line")[1].split(":")[0].strip())
+                    comment = line.split(":", 1)[1].strip()
+                    lines_to_comment.append(line_num)
+                    comments.append(comment)
                 except ValueError:
-                    print(f"WARNING: Line {original_line_num} not in diff for {diff_file.filename}. General comment.")
-                    pr.create_issue_comment(f"Comment for {diff_file.filename} (line {original_line_num}):\n{comment}")
-                except Exception as e:
-                    print(f"ERROR: Failed comment for line {original_line_num} in {diff_file.filename}: {e}")
+                    continue
 
-            print(f"Review comments for {diff_file.filename} posted.")
+        if lines_to_comment:
+            comment_count = 0
+            for line_num, comment in zip(lines_to_comment, comments):
+                if comment_count >= 10:
+                    break
+                try:
+                    pr.create_review_comment(body=comment, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
+                    comment_count += 1
+                except Exception as e:
+                    print(f"ERROR: Failed to create review comment for line {line_num} in {diff_file.filename}: {e}")
+            print(f"Review comments for {diff_file.filename} posted successfully.")
         else:
-            pr.create_issue_comment(f"Review for {diff_file.filename}:\n{review_comment}")
-            print(f"Review for {diff_file.filename} posted as general comment.")
+            print(f"Review for {diff_file.filename} skipped, no improvements suggested.")
+
     else:
         print(f"Gemini API returned no response for {diff_file.filename}.")
 
@@ -168,7 +149,7 @@ def main():
     # Use the GCS client library
     guidelines = download_and_combine_guidelines("hackathon-2025-sme-code-review-train", "guidelines/")
     if not guidelines:
-        print("Warning: No guidelines loaded.  Review will proceed without guidelines.")
+        print("Warning: No guidelines loaded. Review will proceed without guidelines.")
 
     diff_files = get_pr_latest_commit_diff_files(repo_name, pr_number, github_token)
 
