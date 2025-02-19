@@ -4,6 +4,8 @@ from github import Github
 from google.cloud import storage
 import re
 
+total_comments_posted = 0
+
 def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
     """Retrieves diff information for each file in the latest commit of a PR, excluding test files."""
     g = Github(github_token)
@@ -103,6 +105,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
 
 def post_github_review_comments(repo_name, pr_number, diff_file, review_comment, github_token):
     """Posts review comments to a GitHub pull request, annotating specific lines."""
+    global total_comments_posted
     g = Github(github_token)
     repo = g.get_repo(repo_name)
     pr = repo.get_pull(pr_number)
@@ -132,11 +135,12 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         if lines_to_comment:
             comment_count = 0
             for line_num, comment in zip(lines_to_comment, comments):
-                if comment_count >= 10:
+                if comment_count >= 10 or total_comments_posted >= 10:
                     break
                 try:
                     pr.create_review_comment(body=comment, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
                     comment_count += 1
+                    total_comments_posted += 1 #increment total counter
                 except Exception as e:
                     print(f"ERROR: Failed to create review comment for line {line_num} in {diff_file.filename}: {e}")
             print(f"Review comments for {diff_file.filename} posted successfully.")
@@ -148,6 +152,8 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
 
 def main():
     """Main function to orchestrate the Gemini PR review with annotations."""
+    global total_comments_posted
+    total_comments_posted = 0
     api_key = os.environ.get('GEMINI_API_KEY')
     pr_number = int(os.environ.get('PR_NUMBER'))
     repo_name = os.environ.get('GITHUB_REPOSITORY')
