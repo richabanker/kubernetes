@@ -82,7 +82,7 @@ type Endpoint struct {
 	// fungible (e.g. multiple A values in DNS). Must pass DNS Label (RFC 1123)
 	// validation.
 	// +optional
-	Hostname *string
+	Hostname string
 	// targetRef is a reference to a Kubernetes object that represents this
 	// endpoint.
 	// +optional
