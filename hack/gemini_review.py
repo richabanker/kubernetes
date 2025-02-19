@@ -71,7 +71,7 @@ def download_and_combine_pr_comments(bucket_name, prefix):
         print(f"Error downloading or combining PR comments: {e}")
         return ""
 
-def generate_gemini_review_with_annotations(diff_file, api_key, guidelines):
+def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_comments):
     """Generates a code review with annotations using multiple Gemini prompts."""
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
@@ -107,6 +107,8 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines):
     * Changing label selector behavior
     """
     response1 = model.generate_content(prompt1)
+
+    # Create another prompt for pr_comments
 
     # Second prompt: Provide the code diff and focus on specific aspects
     prompt2 = f"""
