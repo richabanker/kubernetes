@@ -126,11 +126,16 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         for line in review_comment.split('\n'):
             if "line" in line.lower() and ":" in line:
                 try:
-                    line_num = int(line.lower().split("line").split(":").strip())
-                    comment = line.split(":", 1).strip()
-                    lines_to_comment.append(line_num)
-                    comments.append(comment)
-                except ValueError:
+                    parts = line.lower().split("line")
+                    if len(parts) > 1:
+                        num_part = parts[1].split(":")[0].strip()
+                        comment_part = line.split(":", 1)
+                        if len(comment_part)>1:
+                            line_num = int(num_part)
+                            comment = comment_part[1].strip()
+                            lines_to_comment.append(line_num)
+                            comments.append(comment)
+                except (ValueError, IndexError):
                     continue
 
         if lines_to_comment:
@@ -145,7 +150,11 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                     current_line = 0
                     for diff_line in diff_lines:
                         if diff_line.startswith("@@"):  # Detect hunk header
-                            current_line = int(diff_line.split("+").split(","))  # Extract starting line number
+                            hunk_parts = diff_line.split("+")
+                            if len(hunk_parts) > 1:
+                                start_line_part = hunk_parts[1].split(",")
+                                if len(start_line_part)>0:
+                                    current_line = int(start_line_part[0])  # Extract starting line number
                         elif diff_line.startswith("+"):  # Added line
                             current_line += 1
                             if current_line == line_num:
