@@ -4361,7 +4361,7 @@ type ReplicationControllerStatus struct {
 
 	// The number of pods that have labels matching the labels of the pod template of the replication controller.
 	// +optional
-	FullyLabeledReplicas int32
+	FullyLabeledReplicas int64
 
 	// The number of ready replicas for this replication controller.
 	// +optional
