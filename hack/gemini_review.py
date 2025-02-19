@@ -125,7 +125,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             for line in diff_lines:
                 if line.startswith("@@"):
                     # Extract the line number from the '@@' line
-                    match = re.search(r"@@ -+,+ \+(+),+ @@", line)
+                    match = re.search(r"@@ -\+,\+ \+(\+),\+ @@", line)
                     if match:
                         original_file_line_num = int(match.group(1)) 
                 elif line.startswith("+"):
