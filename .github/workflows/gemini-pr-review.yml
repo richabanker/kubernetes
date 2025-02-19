@@ -37,3 +37,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python ./hack/gemini_review.py
+
+      - name: Test 
+        run: echo "Modified action success"
