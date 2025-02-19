@@ -17,7 +17,7 @@ def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
             files = latest_commit.files
             diff_files = []
             for file in files:
-                if not file.filename.endswith("_test.go") and not file.filename.endswith("_test.py") and not "/test/" in file.filename:
+                if not file.filename.endswith("_test.go") and not file.filename.endswith("_test.py") and not "/test/" in file.filename and "_generated" not in file.filename:
                     if file.patch:
                         diff_files.append(file)
             return diff_files
