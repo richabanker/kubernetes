@@ -109,7 +109,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             return
 
         latest_commit = commits[-1]
-        line_comments =
+        line_comments = []
         for line in review_comment.split('\n'):
             match = re.search(r"line\s*(\d+)\s*:?\s*(.*)", line, re.IGNORECASE)  
             if match:
