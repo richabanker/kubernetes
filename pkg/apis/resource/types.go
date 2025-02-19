@@ -757,7 +757,7 @@ type AllocationResult struct {
 	// unset, they are available everywhere.
 	//
 	// +optional
-	NodeSelector *core.NodeSelector
+	NodeSelector core.NodeSelector
 
 	// Controller is tombstoned since Kubernetes 1.32 where
 	// it got removed. May be reused once decoding v1alpha3 is no longer
