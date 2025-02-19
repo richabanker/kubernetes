@@ -119,7 +119,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
 
         if line_comments:
             diff_lines = diff_file.patch.splitlines()
-            diff_line_numbers =
+            diff_line_numbers = []
             original_file_line_num = 0  # Initialize here
 
             for line in diff_lines:
