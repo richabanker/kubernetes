@@ -87,6 +87,14 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
 
     Avoid general comments that simply acknowledge correct code or good practices.
 
+    Provide your review comments in the following format:
+
+    ```
+    line <line_number>: <comment>
+    line <line_number>: <comment>
+    ...and so on
+    ```
+
     Ensure:
     * `spec` changes are valid.
     * `status` updates are accurate.
@@ -123,9 +131,9 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         latest_commit = commits[-1]
         diff_lines = diff_file.patch.splitlines()
 
-        # Use regex to find line numbers and comments (handles ranges like "12-15")
-        line_comments = [(int(match.group(1).split("-")), match.group(2).strip())
-                         for match in re.finditer(r"line (\d+(?:-\d+)?): (.*)", review_comment)]
+        # Use regex to find line numbers and comments
+        line_comments = [(int(match.group(1)), match.group(2).strip())
+                         for match in re.finditer(r"line (\d+): (.*)", review_comment)]
 
         for line_num, comment in line_comments:
             if total_comments_posted >= MAX_COMMENTS:
