@@ -121,7 +121,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         diff_lines = diff_file.patch.splitlines()
 
         # Parse the review comment for line number annotations
-        lines_to_comment =
+        lines_to_comment = []
         comments =
         for line in review_comment.split('\n'):
             if "line" in line.lower() and ":" in line:
