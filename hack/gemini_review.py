@@ -130,7 +130,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                     if len(parts) > 1:
                         num_part = parts[1].split(":")[0].strip()
                         comment_part = line.split(":", 1)
-                        if len(comment_part)>1:
+                        if len(comment_part) > 1:
                             line_num = int(num_part)
                             comment = comment_part[1].strip()
                             lines_to_comment.append(line_num)
@@ -145,21 +145,27 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                     break
 
                 try:
-                    # Parse the diff to find the correct line number
                     corrected_line_num = None
-                    current_line = 0
-                    for diff_line in diff_lines:
-                        if diff_line.startswith("@@"):  # Detect hunk header
-                            hunk_parts = diff_line.split("+")
-                            if len(hunk_parts) > 1:
-                                start_line_part = hunk_parts[1].split(",")
-                                if len(start_line_part)>0:
-                                    current_line = int(start_line_part[0])  # Extract starting line number
-                        elif diff_line.startswith("+"):  # Added line
-                            current_line += 1
-                            if current_line == line_num:
-                                corrected_line_num = current_line
+                    right_side_line = 0
+                    diff_line_index = 0
+
+                    while diff_line_index < len(diff_lines):
+                        diff_line = diff_lines[diff_line_index]
+
+                        if diff_line.startswith("@@"):
+                            hunk_info = diff_line.split("@@")[1].strip()
+                            right_side_info = hunk_info.split(" ")[1].strip()
+                            right_side_line = int(right_side_info.split("+")[1].split(",")[0]) - 1
+
+                        elif diff_line.startswith("+"):
+                            right_side_line += 1
+                            if right_side_line == line_num:
+                                corrected_line_num = right_side_line
                                 break
+                        elif diff_line.startswith(" "):
+                            right_side_line += 1
+
+                        diff_line_index += 1
 
                     if corrected_line_num:
                         pr.create_review_comment(
@@ -172,7 +178,9 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                         comment_count += 1
                         total_comments_posted += 1
                     else:
-                        print(f"WARNING: Could not find correct line number for comment on line {line_num} in {diff_file.filename}")
+                        print(
+                            f"WARNING: Could not find correct line number for comment on line {line_num} in {diff_file.filename}"
+                        )
 
                 except Exception as e:
                     print(f"ERROR: Failed to create review comment for line {line_num} in {diff_file.filename}: {e}")
