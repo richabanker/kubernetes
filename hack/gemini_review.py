@@ -17,7 +17,7 @@ def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
             files = latest_commit.files
             diff_files = []
             for file in files:
-                if not file.filename.endswith("_test.go") and not file.filename.endswith("_test.py") and not "/test/" in file.filename:
+                if not file.filename.endswith("_test.go") and not file.filename.endswith("_test.py") and not "/test/" in file.filename and not file.filename.endswith("_generated.go"):
                     if file.patch:
                         diff_files.append(file)
             return diff_files
@@ -68,7 +68,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     model = genai.GenerativeModel('gemini-2.0-flash')
 
     diff = diff_file.patch
-    max_diff_length = 20000  # Adjust based on token count
+    max_diff_length = 100000  # Adjust based on token count
     if len(diff) > max_diff_length:
         diff = diff[:max_diff_length]
         diff += "\n... (truncated due to length limit) ..."
@@ -111,16 +111,16 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         # Parse the review comment for line number annotations
         line_comments = []
         for line in review_comment.split('\n'):
-            match = re.search(r"line (\d+): (.*)", line, re.IGNORECASE)
+            match = re.match(r"line\s+(\d+):\s+(.+)", line, re.IGNORECASE)
             if match:
                 line_num = int(match.group(1))
-                comment = match.group(2).strip()
-                line_comments.append((line_num, comment))
+                comment_body = match.group(2).strip()
+                line_comments.append((line_num, comment_body))
 
         if line_comments:
-            for line_num, comment in line_comments:
+            for line_num, comment_body in line_comments:
                 try:
-                    pr.create_review_comment(body=comment, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
+                    pr.create_review_comment(body=comment_body, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
                 except Exception as e:
                     print(f"ERROR: Failed to create review comment for line {line_num} in {diff_file.filename}: {e}")
             print(f"Review comments for {diff_file.filename} posted successfully.")
