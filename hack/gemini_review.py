@@ -92,8 +92,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     {pr_comments}
 
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
-    Point out potential improvements and suggest changes, based on the guidelines and the previous PR comments history.
-    Only suggest a change if there is a clear improvement that can be made to the code itself.
+    Point out potential issues and suggest improvements, based on the guidelines and the previous PR comments history.
     If you see lines that have issues, mention the line number in the format 'line <number>: <comment>'.
     Do not post generic comments that don't suggest specific improvements.
     ```diff
