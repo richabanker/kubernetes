@@ -141,7 +141,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         if lines_to_comment:
             comment_count = 0
             for line_num, comment in zip(lines_to_comment, comments):
-                if comment_count >= 10 or total_comments_posted >= 10:
+                if comment_count >= 10 or total_comments_posted >= 20:
                     break
 
                 try:
