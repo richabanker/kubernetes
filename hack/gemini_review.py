@@ -118,15 +118,16 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             return
 
         latest_commit = commits[-1]
+        diff_lines = diff_file.patch.splitlines()
 
         # Parse the review comment for line number annotations
-        lines_to_comment = []
-        comments = []
+        lines_to_comment =
+        comments =
         for line in review_comment.split('\n'):
             if "line" in line.lower() and ":" in line:
                 try:
-                    line_num = int(line.lower().split("line")[1].split(":")[0].strip())
-                    comment = line.split(":", 1)[1].strip()
+                    line_num = int(line.lower().split("line").split(":").strip())
+                    comment = line.split(":", 1).strip()
                     lines_to_comment.append(line_num)
                     comments.append(comment)
                 except ValueError:
@@ -137,12 +138,36 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             for line_num, comment in zip(lines_to_comment, comments):
                 if comment_count >= 10 or total_comments_posted >= 10:
                     break
+
                 try:
-                    pr.create_review_comment(body=comment, commit=latest_commit, path=diff_file.filename, line=line_num, side="RIGHT")
-                    comment_count += 1
-                    total_comments_posted += 1 #increment total counter
+                    # Parse the diff to find the correct line number
+                    corrected_line_num = None
+                    current_line = 0
+                    for diff_line in diff_lines:
+                        if diff_line.startswith("@@"):  # Detect hunk header
+                            current_line = int(diff_line.split("+").split(","))  # Extract starting line number
+                        elif diff_line.startswith("+"):  # Added line
+                            current_line += 1
+                            if current_line == line_num:
+                                corrected_line_num = current_line
+                                break
+
+                    if corrected_line_num:
+                        pr.create_review_comment(
+                            body=comment,
+                            commit=latest_commit,
+                            path=diff_file.filename,
+                            line=corrected_line_num,
+                            side="RIGHT",
+                        )
+                        comment_count += 1
+                        total_comments_posted += 1
+                    else:
+                        print(f"WARNING: Could not find correct line number for comment on line {line_num} in {diff_file.filename}")
+
                 except Exception as e:
                     print(f"ERROR: Failed to create review comment for line {line_num} in {diff_file.filename}: {e}")
+
             print(f"Review comments for {diff_file.filename} posted successfully.")
         else:
             print(f"Review for {diff_file.filename} skipped, no improvements suggested.")
