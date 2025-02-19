@@ -162,7 +162,8 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                             if right_side_line == line_num:
                                 corrected_line_num = right_side_line
                                 break
-                        elif diff_line.startswith(" "):
+                        elif diff_line.startswith(" "): #context line
+                            original_file_line += 1
                             right_side_line += 1
 
                         diff_line_index += 1
