@@ -120,18 +120,18 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         latest_commit = commits[-1]
         diff_lines = diff_file.patch.splitlines()
 
-        lines_to_comment = []
-        comments = []
+        lines_to_comment =
+        comments =
         for line in review_comment.split('\n'):
             if "line" in line.lower() and ":" in line:
                 try:
                     parts = line.lower().split("line")
                     if len(parts) > 1:
-                        num_part = parts[1].split(":")[0].strip()
+                        num_part = parts.split(":").strip()
                         comment_part = line.split(":", 1)
                         if len(comment_part) > 1:
                             line_num = int(num_part)
-                            comment = comment_part[1].strip()
+                            comment = comment_part.strip()
                             lines_to_comment.append(line_num)
                             comments.append(comment)
                 except (ValueError, IndexError):
@@ -151,15 +151,17 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
 
                     for diff_line in diff_lines:
                         if diff_line.startswith("@@"):
-                            hunk_info = diff_line.split("@@")[1].strip()
-                            right_side_info = hunk_info.split(" ")[1].strip()
-                            hunk_right_start = int(right_side_info.split("+")[1].split(",")[0])
+                            hunk_info = diff_line.split("@@").strip()
+                            right_side_info = hunk_info.split(" ").strip()
+                            hunk_right_start = int(right_side_info.split("+").split(","))
                             right_side_line = hunk_right_start -1 #subtract 1 because first line in hunk adds one.
                         elif diff_line.startswith("+"):
                             right_side_line += 1
                             if right_side_line == line_num:
                                 corrected_line_num = right_side_line
                                 break
+                        elif diff_line.startswith("-"): #removed line
+                            right_side_line -=1 #decrement the right side line for removed lines.
                         elif not diff_line.startswith("-"): #context line or + line
                             if diff_line.startswith(" "):
                                 right_side_line += 1
