@@ -71,8 +71,8 @@ def download_and_combine_pr_comments(bucket_name, prefix):
         print(f"Error downloading or combining PR comments: {e}")
         return ""
 
-def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_comments):
-    """Generates a code review with annotations, incorporating guidelines."""
+def generate_gemini_review_with_annotations(diff_file, api_key, guidelines):
+    """Generates a code review with annotations using multiple Gemini prompts."""
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash')
 
@@ -80,27 +80,61 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     max_diff_length = 100000  # Adjust based on token count
     if len(diff) > max_diff_length:
         diff = diff[:max_diff_length]
-        diff += "\n... (truncated due to length limit) ..."
+        diff += "\n... (truncated due to length limit)..."
 
-    prompt = f"""
-    The following are the API review guidelines:
+    # First prompt: Focus on guidelines and breaking changes
+    prompt1 = f"""
+    You are an expert Kubernetes API reviewer, well-versed in the API conventions and breaking change rules.
+    The following are the API review guidelines you must adhere to:
 
     {guidelines}
 
-    The following are the previous PR comments history:
+    I will provide you with a code diff in the next turn.
+    You will need to review it carefully and provide feedback based on these guidelines.
+    Pay close attention to potential breaking changes, such as:
+    * Modifying existing fields (type changes, optional to required, removing fields, changing defaults, validation rules)
+    * Adding required fields
+    * Changing object reference handling or namespace scope
+    * Modifying resource URLs or supported HTTP verbs
+    * Changing status condition meanings or removing them
+    * Modifying defaulting logic
+    * Changing serialization format
+    * Changing units
+    * Changing naming conventions
+    * Changing WebSocket/SPDY protocols
+    * Modifying the Status object
+    * Changing event reason meanings
+    * Changing label selector behavior
+    """
+    response1 = model.generate_content(prompt1)
 
-    {pr_comments}
-
+    # Second prompt: Provide the code diff and focus on specific aspects
+    prompt2 = f"""
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
-    Point out potential issues and suggest improvements, based on the guidelines and the previous PR comments history.
+    Point out potential improvements and suggest changes, based on the guidelines I provided earlier.
+    Only suggest a change if there is a clear improvement that can be made to the code itself.
     If you see lines that have issues, mention the line number in the format 'line <number>: <comment>'.
     Do not post generic comments that don't suggest specific improvements.
+    Focus exclusively on the code changes within the diff.
+
+    Ensure that:
+    * Changes within the `spec` are valid and consistent with the desired state.
+    * `status` updates accurately reflect the current state and any relevant conditions.
+    * Object references are handled correctly and follow the naming conventions.
+    * Validation logic is accurate and uses the correct terminology.
+    * Duration fields use the `fooSeconds` convention.
+    * Condition types are named in `PascalCase`.
+    * All API objects have the required metadata fields.
+
     ```diff
     {diff}
     ```
     """
-    response = model.generate_content(prompt)
-    return response.text if response.text else None
+    response2 = model.generate_content(prompt2)
+
+    # Combine responses (if needed)
+    final_response = response2.text if response2.text else None
+    return final_response
 
 def post_github_review_comments(repo_name, pr_number, diff_file, review_comment, github_token):
     """Posts review comments to a GitHub pull request, annotating specific lines."""
