@@ -108,7 +108,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
     Point out potential issues, suggest changes where applicable, based on the guidelines I provided earlier.
     If you see lines that have issues, mention the line number in the format 'line <number>: <comment>'.
-    Focus exclusively on the code changes within the diff.
+    Focus exclusively on the code changes within the diff. 
 
     Ensure that:
     * Changes within the `spec` are valid and consistent with the desired state.
@@ -124,8 +124,6 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     ```
     """
     response2 = model.generate_content(prompt2)
-    print("=== Gemini Response 2 ===")
-    print(response2.text)
 
     # Combine responses (if needed)
     final_response = response2.text if response2.text else None
