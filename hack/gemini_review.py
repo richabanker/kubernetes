@@ -122,7 +122,7 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
 
         # Parse the review comment for line number annotations
         lines_to_comment = []
-        comments =
+        comments = []
         for line in review_comment.split('\n'):
             if "line" in line.lower() and ":" in line:
                 try:
