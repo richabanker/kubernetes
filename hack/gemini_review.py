@@ -33,23 +33,36 @@ def get_pr_latest_commit_diff_files(repo_name, pr_number, github_token):
         return None
 
 def download_and_combine_guidelines(bucket_name, prefix):
-    """Downloads markdown files from GCS."""
+    """Downloads markdown files from GCS using the google-cloud-storage library."""
     try:
         storage_client = storage.Client()
         bucket = storage_client.bucket(bucket_name)
-        blobs = bucket.list_blobs(prefix=prefix)
-        guidelines_content = "".join(
-            blob.download_as_text() + "\n\n" for blob in blobs if blob.name.endswith(".md")
-        )
+        blobs = bucket.list_blobs(prefix=prefix)  # Use prefix for efficiency
+        
+        guidelines_content = ""
+        for blob in blobs:
+            if blob.name.endswith(".md"):
+                guidelines_content += blob.download_as_text() + "\n\n"
         return guidelines_content
+        
     except Exception as e:
-        print(f"Error downloading guidelines: {e}")
-        return ""
+        print(f"Error downloading or combining guidelines: {e}")
 
 def download_and_combine_pr_comments(bucket_name, prefix):
-    """Placeholder for PR comments download (currently skipped)."""
-    print("Warning: Skipping download of PR comments.")
-    return ""
+    """Downloads text files from GCS using the google-cloud-storage library."""
+    try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blobs = bucket.list_blobs(prefix=prefix)  # Use prefix for efficiency
+        pr_comments_content = ""
+        # TODO: Skip for now, since it is too large
+        # for blob in blobs:
+        #     if blob.name.endswith(".txt"):
+        #         pr_comments_content += blob.download_as_text() + "\n\n"
+        return pr_comments_content
+    except Exception as e:
+        print(f"Error downloading or combining PR comments: {e}")
+        return ""
 
 def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_comments):
     """Generates a code review with annotations using Gemini."""
@@ -96,7 +109,6 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
 
 def post_github_review_comments(repo_name, pr_number, diff_file, review_comment, github_token):
     """Posts review comments to GitHub PR, annotating specific lines."""
-    global total_comments_posted
     g = Github(github_token)
     repo = g.get_repo(repo_name)
     pr = repo.get_pull(pr_number)
@@ -154,8 +166,6 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
 
 def main():
     """Main function to orchestrate Gemini PR review."""
-    global total_comments_posted
-    total_comments_posted = 0
     api_key = os.environ.get('GEMINI_API_KEY')
     pr_number = int(os.environ.get('PR_NUMBER'))
     repo_name = os.environ.get('GITHUB_REPOSITORY')
