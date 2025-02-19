@@ -108,7 +108,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     Review the following code diff from file `{diff_file.filename}` and provide feedback.
     Point out potential issues, suggest changes where applicable, based on the guidelines I provided earlier.
     If you see lines that have issues, mention the line number in the format 'line <number>: <comment>'.
-    Focus exclusively on the code changes within the diff. Please avoid making comments that simply point out existing good practices or correct code.
+    Focus exclusively on the code changes within the diff. Please DONT make comments that simply point out existing good practices or correct code.
 
     Ensure that:
     * Changes within the `spec` are valid and consistent with the desired state.
