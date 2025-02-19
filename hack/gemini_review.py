@@ -120,7 +120,6 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
         latest_commit = commits[-1]
         diff_lines = diff_file.patch.splitlines()
 
-        # Parse the review comment for line number annotations
         lines_to_comment = []
         comments = []
         for line in review_comment.split('\n'):
@@ -146,7 +145,6 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
 
                 try:
                     corrected_line_num = None
-                    original_file_line = 0
                     right_side_line = 0
                     diff_line_index = 0
 
@@ -154,21 +152,14 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                         diff_line = diff_lines[diff_line_index]
 
                         if diff_line.startswith("@@"):
-                            # Reset line numbers at the start of each hunk
-                            original_file_line = 0
-                            right_side_line = 0
-                            
-                            hunk_info = diff_line.split("@@")[1].strip()
-                            right_side_info = hunk_info.split(" ")[1].strip()
-                            right_side_line = int(right_side_info.split("+")[1].split(",")[0]) - 1
+                            right_side_line = int(diff_line.split("@@")[1].split("+")[1].split(",")[0])
 
                         elif diff_line.startswith("+"):
-                            right_side_line += 1
                             if right_side_line == line_num:
                                 corrected_line_num = right_side_line
                                 break
-                        elif diff_line.startswith(" "): #context line
-                            original_file_line += 1
+                            right_side_line += 1
+                        elif diff_line.startswith(" "):
                             right_side_line += 1
 
                         diff_line_index += 1
