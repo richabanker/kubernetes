@@ -123,6 +123,8 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     """
     response = model.generate_content(prompt)
     if response and response.text:
+        print(f"=== Gemini Response for {diff_file.filename} ===")
+        print(response.text)
         return response.text
     else:
         print("=== Gemini Response (Empty) ===")
@@ -156,26 +158,30 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             try:
                 corrected_line_num = None
                 right_side_line = 0
-                current_line = 0
+                original_line = 0
 
                 for diff_line in diff_lines:
                     if diff_line.startswith("@@"):
-                        # Extract right-side line number from hunk info
                         hunk_info = diff_line.split("@@")[1].strip()
                         right_side_info = hunk_info.split("+")[1].split(" ")[0]
-                        right_side_line = int(right_side_info.split(",")[0])
-                        current_line = right_side_line - 1
+                        right_side_line = int(right_side_info.split(",")[0]) - 1
+                        original_side_info = hunk_info.split("-")[1].split(" ")[0]
+                        original_line = int(original_side_info.split(",")[0]) - 1
 
                     elif diff_line.startswith("+"):
-                        current_line += 1
-                        if current_line == line_num:
-                            corrected_line_num = current_line
+                        right_side_line += 1
+                        if right_side_line == line_num:
+                            corrected_line_num = right_side_line
                             break
 
-                    elif not diff_line.startswith("-") and not diff_line.startswith("@@"): #count unchanged lines.
-                        current_line += 1
-                        if current_line == line_num:
-                            corrected_line_num = current_line
+                    elif diff_line.startswith("-"):
+                        original_line += 1
+
+                    elif not diff_line.startswith("@@"):
+                        right_side_line += 1
+                        original_line += 1
+                        if right_side_line == line_num:
+                            corrected_line_num = right_side_line
                             break
 
                 if corrected_line_num:
