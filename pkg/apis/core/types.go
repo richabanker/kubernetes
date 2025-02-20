@@ -4357,7 +4357,7 @@ type ReplicationControllerSpec struct {
 // controller.
 type ReplicationControllerStatus struct {
 	// Replicas is the number of actual replicas.
-	Replicas int32
+	Replicas *int32
 
 	// The number of pods that have labels matching the labels of the pod template of the replication controller.
 	// +optional
