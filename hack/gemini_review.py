@@ -126,6 +126,8 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     """
     response = model.generate_content(prompt)
     if response and response.text:
+        print(f"=== Gemini Response for {diff_file.filename} ===")
+        print(response.text) 
         return response.text
     else:
         print("=== Gemini Response (Empty) ===")
