@@ -90,13 +90,10 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     Provide your review comments in the following format:
 
     ```
-    file: <filename>, line <absolute_line_number>: <comment>
-    file: <filename>, line <absolute_line_number>: <comment>
+    line <line_number>: <comment>
+    line <line_number>: <comment>
     ...and so on
     ```
-
-    You must calculate the absolute line number within the `{diff_file.filename}` file where the changes in the diff are located. 
-    Do not provide line numbers relative to the diff. The line numbers must match the line numbers of the file itself.
 
 * **Adhere to Conventions:**
     * Duration fields use `fooSeconds`.
@@ -127,7 +124,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
     response = model.generate_content(prompt)
     if response and response.text:
         print(f"=== Gemini Response for {diff_file.filename} ===")
-        print(response.text) 
+        print(response.text)
         return response.text
     else:
         print("=== Gemini Response (Empty) ===")
@@ -148,28 +145,56 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
             return
 
         latest_commit = commits[-1]
+        diff_lines = diff_file.patch.splitlines()
 
-        # Use regex to find file name, line numbers and comments
-        line_comments = [(match.group(1), int(match.group(2)), match.group(3).strip())
-                         for match in re.finditer(r"file: (.*?), line (\d+): (.*)", review_comment)]
+        # Use regex to find line numbers and comments
+        line_comments = [(int(match.group(1)), match.group(2).strip())
+                         for match in re.finditer(r"line (\d+): (.*)", review_comment)]
 
-        for filename, line_num, comment in line_comments:
+        for line_num, comment in line_comments:
             if total_comments_posted >= MAX_COMMENTS:
                 print("Comment limit reached.")
                 break
             try:
-                if filename == diff_file.filename:
+                corrected_line_num = None
+                right_side_line = 0
+                current_line = 0
+
+                for diff_line in diff_lines:
+                    if diff_line.startswith("@@"):
+                        # Extract right-side line number from hunk info
+                        hunk_info = diff_line.split("@@")[1].strip()
+                        right_side_info = hunk_info.split("+")[1].split(" ")[0]
+                        right_side_line = int(right_side_info.split(",")[0])
+                        current_line = right_side_line - 1
+
+                    elif diff_line.startswith("+"):
+                        current_line += 1
+                        if current_line == line_num:
+                            corrected_line_num = current_line
+                            break
+
+                    elif not diff_line.startswith("-") and not diff_line.startswith("@@"): #count unchanged lines.
+                        current_line += 1
+                        if current_line == line_num:
+                            corrected_line_num = current_line
+                            break
+
+                if corrected_line_num:
                     pr.create_review_comment(
                         body=comment,
                         commit=latest_commit,
-                        path=filename,
-                        line=line_num,
+                        path=diff_file.filename,
+                        line=corrected_line_num,
                         side="RIGHT",
                     )
                     total_comments_posted += 1
                     print(f"Review comments for {diff_file.filename} posted.")
                 else:
-                    print(f"WARNING: Filename mismatch. Gemini returned comment for {filename}, expected {diff_file.filename}.")
+                    print(f"WARNING: Could not find line {line_num} in {diff_file.filename}.")
+                    print(f"Diff file: {diff_file.filename}")
+                    print(f"Gemini comment: {comment}")
+
             except Exception as e:
                 print(f"ERROR: Failed to create comment for line {line_num} in {diff_file.filename}: {e}")
 
