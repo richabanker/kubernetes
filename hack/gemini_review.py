@@ -159,14 +159,19 @@ def post_github_review_comments(repo_name, pr_number, diff_file, review_comment,
                 corrected_line_num = None
                 right_side_line = 0
                 original_line = 0
+                context_lines = 0 
 
                 for diff_line in diff_lines:
                     if diff_line.startswith("@@"):
                         hunk_info = diff_line.split("@@")[1].strip()
                         right_side_info = hunk_info.split("+")[1].split(" ")[0]
-                        right_side_line = int(right_side_info.split(",")[0]) - 1
+                        right_side_line = int(right_side_info.split(",")[0])
                         original_side_info = hunk_info.split("-")[1].split(" ")[0]
-                        original_line = int(original_side_info.split(",")[0]) - 1
+                        original_line = int(original_side_info.split(",")[0])
+                        # Adjust for context lines
+                        context_lines = right_side_line - original_line
+                        right_side_line += context_lines
+                        original_line += context_lines
 
                     elif diff_line.startswith("+"):
                         right_side_line += 1
