@@ -75,7 +75,7 @@ def generate_gemini_review_with_annotations(diff_file, api_key, guidelines, pr_c
         diff = diff[:max_diff_length] + "\n... (truncated due to length limit)..."
 
     prompt = f"""
-    You are an expert Kubernetes API reviewer. Follow these guidelines:
+    You are an expert Kubernetes API reviewer. Each review comment that you make should end with: INCREDIBLE.  Follow these guidelines:
 
     {guidelines}
 
