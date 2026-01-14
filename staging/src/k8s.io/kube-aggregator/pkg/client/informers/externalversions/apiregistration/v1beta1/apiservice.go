@@ -24,6 +24,7 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 	apisapiregistrationv1beta1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1beta1"
@@ -55,7 +56,10 @@ func NewAPIServiceInformer(client clientset.Interface, resyncPeriod time.Duratio
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredAPIServiceInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	gvr := schema.GroupVersionResource{Group: "apiregistration.k8s.io", Version: "v1beta1", Resource: "apiservices"}
+	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+	identifier, _ := cache.NewIdentifier("aPIService-informer", gvr)
+	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -83,8 +87,11 @@ func NewFilteredAPIServiceInformer(client clientset.Interface, resyncPeriod time
 			},
 		}, client),
 		&apisapiregistrationv1beta1.APIService{},
-		resyncPeriod,
-		indexers,
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: resyncPeriod,
+			Indexers:     indexers,
+			Identifier:   identifier,
+		},
 	)
 }
 

@@ -25,6 +25,7 @@ import (
 	apiresourcev1beta2 "k8s.io/api/resource/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	kubernetes "k8s.io/client-go/kubernetes"
@@ -55,7 +56,10 @@ func NewDeviceClassInformer(client kubernetes.Interface, resyncPeriod time.Durat
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredDeviceClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	gvr := schema.GroupVersionResource{Group: "resource.k8s.io", Version: "v1beta2", Resource: "deviceclasss"}
+	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+	identifier, _ := cache.NewIdentifier("deviceClass-informer", gvr)
+	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -83,8 +87,11 @@ func NewFilteredDeviceClassInformer(client kubernetes.Interface, resyncPeriod ti
 			},
 		}, client),
 		&apiresourcev1beta2.DeviceClass{},
-		resyncPeriod,
-		indexers,
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: resyncPeriod,
+			Indexers:     indexers,
+			Identifier:   identifier,
+		},
 	)
 }
 

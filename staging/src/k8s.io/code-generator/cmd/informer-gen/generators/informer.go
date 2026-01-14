@@ -83,13 +83,17 @@ func (g *informerGenerator) GenerateType(c *generator.Context, t *types.Type, w 
 		"cacheListWatch":                           c.Universe.Type(cacheListWatch),
 		"cacheMetaNamespaceIndexFunc":              c.Universe.Function(cacheMetaNamespaceIndexFunc),
 		"cacheNamespaceIndex":                      c.Universe.Variable(cacheNamespaceIndex),
+		"cacheNewIdentifier":                       c.Universe.Function(cacheNewIdentifier),
 		"cacheNewSharedIndexInformer":              c.Universe.Function(cacheNewSharedIndexInformer),
+		"cacheNewSharedIndexInformerWithOptions":   c.Universe.Function(cacheNewSharedIndexInformerWithOptions),
 		"cacheSharedIndexInformer":                 c.Universe.Type(cacheSharedIndexInformer),
+		"cacheSharedIndexInformerOptions":          c.Universe.Type(cacheSharedIndexInformerOptions),
 		"cacheToListWatcherWithWatchListSemantics": c.Universe.Function(cacheToListWatcherWithWatchListSemanticsFunc),
 		"clientSetInterface":                       clientSetInterface,
 		"contextContext":                           c.Universe.Type(contextContext),
 		"contextBackground":                        c.Universe.Function(contextBackgroundFunc),
 		"group":                                    namer.IC(g.groupGoName),
+		"groupName":                                g.groupVersion.Group.String(),
 		"informerFor":                              informerFor,
 		"interfacesTweakListOptionsFunc":           c.Universe.Type(types.Name{Package: g.internalInterfacesPackage, Name: "TweakListOptionsFunc"}),
 		"interfacesSharedInformerFactory":          c.Universe.Type(types.Name{Package: g.internalInterfacesPackage, Name: "SharedInformerFactory"}),
@@ -98,11 +102,14 @@ func (g *informerGenerator) GenerateType(c *generator.Context, t *types.Type, w 
 		"namespaceAll":                             c.Universe.Type(metav1NamespaceAll),
 		"namespaced":                               !tags.NonNamespaced,
 		"newLister":                                c.Universe.Function(types.Name{Package: listerPackage, Name: "New" + t.Name.Name + "Lister"}),
+		"resourceName":                             strings.ToLower(t.Name.Name) + "s",
 		"runtimeObject":                            c.Universe.Type(runtimeObject),
+		"schemaGroupVersionResource":               c.Universe.Type(schemaGroupVersionResource),
 		"timeDuration":                             c.Universe.Type(timeDuration),
 		"type":                                     t,
 		"v1ListOptions":                            c.Universe.Type(v1ListOptions),
 		"version":                                  namer.IC(g.groupVersion.Version.String()),
+		"versionName":                              g.groupVersion.Version.String(),
 		"watchInterface":                           c.Universe.Type(watchInterface),
 	}
 
@@ -148,7 +155,10 @@ var typeFilteredInformerPublicConstructor = `
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFiltered$.type|public$Informer(client $.clientSetInterface|raw$$if .namespaced$, namespace string$end$, resyncPeriod $.timeDuration|raw$, indexers $.cacheIndexers|raw$, tweakListOptions $.interfacesTweakListOptionsFunc|raw$) $.cacheSharedIndexInformer|raw$ {
-	return $.cacheNewSharedIndexInformer|raw$(
+	gvr := $.schemaGroupVersionResource|raw${Group: "$.groupName$", Version: "$.versionName$", Resource: "$.resourceName$"}
+	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+	identifier, _ := $.cacheNewIdentifier|raw$("$.type|private$-informer", gvr)
+	return $.cacheNewSharedIndexInformerWithOptions|raw$(
 		$.cacheToListWatcherWithWatchListSemantics|raw$(&$.cacheListWatch|raw${
 			ListFunc: func(options $.v1ListOptions|raw$) ($.runtimeObject|raw$, error) {
 				if tweakListOptions != nil {
@@ -176,8 +186,11 @@ func NewFiltered$.type|public$Informer(client $.clientSetInterface|raw$$if .name
 			},
 		}, client),
 		&$.type|raw${},
-		resyncPeriod,
-		indexers,
+		$.cacheSharedIndexInformerOptions|raw${
+			ResyncPeriod: resyncPeriod,
+			Indexers:     indexers,
+			Identifier:   identifier,
+		},
 	)
 }
 `

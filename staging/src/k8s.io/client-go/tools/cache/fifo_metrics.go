@@ -42,19 +42,25 @@ type fifoMetrics struct {
 
 type noopFIFOMetricsProvider struct{}
 
-var globalFIFOMetricsProvider FIFOMetricsProvider = noopFIFOMetricsProvider{}
+var (
+	globalFIFOMetricsProvider  FIFOMetricsProvider = noopFIFOMetricsProvider{}
+	setFIFOMetricsProviderOnce sync.Once
+)
 
-var setGlobalFIFOMetricsProviderOnce sync.Once
-
-// SetFIFOMetricsProvider sets the metrics provider for all subsequently created FIFOs.
-// Only the first call has an effect.
+// SetFIFOMetricsProvider sets the metrics provider for all subsequently created
+// FIFOs. Only the first call has an effect.
 func SetFIFOMetricsProvider(metricsProvider FIFOMetricsProvider) {
-	setGlobalFIFOMetricsProviderOnce.Do(func() {
+	setFIFOMetricsProviderOnce.Do(func() {
 		globalFIFOMetricsProvider = metricsProvider
 	})
 }
 
-func newFIFOMetrics(id Identifier, metricsProvider FIFOMetricsProvider) *fifoMetrics {
+// GlobalFIFOMetricsProvider returns the global FIFO metrics provider.
+func GlobalFIFOMetricsProvider() FIFOMetricsProvider {
+	return globalFIFOMetricsProvider
+}
+
+func newFIFOMetrics(id *Identifier, metricsProvider FIFOMetricsProvider) *fifoMetrics {
 	if metricsProvider == nil {
 		metricsProvider = globalFIFOMetricsProvider
 	}

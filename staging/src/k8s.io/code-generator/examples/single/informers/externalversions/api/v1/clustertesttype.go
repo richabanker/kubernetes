@@ -24,6 +24,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 	singleapiv1 "k8s.io/code-generator/examples/single/api/v1"
@@ -55,7 +56,10 @@ func NewClusterTestTypeInformer(client versioned.Interface, resyncPeriod time.Du
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredClusterTestTypeInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	gvr := schema.GroupVersionResource{Group: "example.crd.code-generator.k8s.io", Version: "v1", Resource: "clustertesttypes"}
+	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+	identifier, _ := cache.NewIdentifier("clusterTestType-informer", gvr)
+	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -83,8 +87,11 @@ func NewFilteredClusterTestTypeInformer(client versioned.Interface, resyncPeriod
 			},
 		}, client),
 		&singleapiv1.ClusterTestType{},
-		resyncPeriod,
-		indexers,
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: resyncPeriod,
+			Indexers:     indexers,
+			Identifier:   identifier,
+		},
 	)
 }
 

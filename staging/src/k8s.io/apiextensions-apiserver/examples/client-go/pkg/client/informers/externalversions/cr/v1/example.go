@@ -28,6 +28,7 @@ import (
 	crv1 "k8s.io/apiextensions-apiserver/examples/client-go/pkg/client/listers/cr/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -56,7 +57,10 @@ func NewExampleInformer(client versioned.Interface, namespace string, resyncPeri
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredExampleInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
+	gvr := schema.GroupVersionResource{Group: "cr.example.apiextensions.k8s.io", Version: "v1", Resource: "examples"}
+	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+	identifier, _ := cache.NewIdentifier("example-informer", gvr)
+	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -84,8 +88,11 @@ func NewFilteredExampleInformer(client versioned.Interface, namespace string, re
 			},
 		}, client),
 		&apiscrv1.Example{},
-		resyncPeriod,
-		indexers,
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: resyncPeriod,
+			Indexers:     indexers,
+			Identifier:   identifier,
+		},
 	)
 }
 

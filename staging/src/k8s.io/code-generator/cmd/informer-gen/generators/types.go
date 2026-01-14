@@ -26,8 +26,11 @@ var (
 	cacheMetaNamespaceIndexFunc                  = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "MetaNamespaceIndexFunc"}
 	cacheNamespaceIndex                          = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NamespaceIndex"}
 	cacheNewGenericLister                        = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewGenericLister"}
+	cacheNewIdentifier                           = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewIdentifier"}
 	cacheNewSharedIndexInformer                  = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewSharedIndexInformer"}
+	cacheNewSharedIndexInformerWithOptions       = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewSharedIndexInformerWithOptions"}
 	cacheSharedIndexInformer                     = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "SharedIndexInformer"}
+	cacheSharedIndexInformerOptions              = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "SharedIndexInformerOptions"}
 	cacheTransformFunc                           = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "TransformFunc"}
 	cacheToListWatcherWithWatchListSemanticsFunc = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "ToListWatcherWithWatchListSemantics"}
 	contextBackgroundFunc                        = types.Name{Package: "context", Name: "Background"}
