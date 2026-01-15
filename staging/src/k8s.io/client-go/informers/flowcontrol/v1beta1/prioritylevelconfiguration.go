@@ -45,45 +45,70 @@ type priorityLevelConfigurationInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// PriorityLevelConfigurationInformerOptions holds the options for creating a PriorityLevelConfiguration informer.
+type PriorityLevelConfigurationInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewPriorityLevelConfigurationInformer constructs a new informer for PriorityLevelConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewPriorityLevelConfigurationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPriorityLevelConfigurationInformer(client, resyncPeriod, indexers, nil)
+	return NewPriorityLevelConfigurationInformerWithOptions(client, resyncPeriod, indexers, PriorityLevelConfigurationInformerOptions{})
+}
+
+// NewPriorityLevelConfigurationInformerWithOptions constructs a new informer for PriorityLevelConfiguration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewPriorityLevelConfigurationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options PriorityLevelConfigurationInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredPriorityLevelConfigurationInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredPriorityLevelConfigurationInformer constructs a new informer for PriorityLevelConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredPriorityLevelConfigurationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredPriorityLevelConfigurationInformerWithOptions(client, resyncPeriod, indexers, PriorityLevelConfigurationInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredPriorityLevelConfigurationInformerWithOptions constructs a new informer for PriorityLevelConfiguration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredPriorityLevelConfigurationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options PriorityLevelConfigurationInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "flowcontrol.apiserver.k8s.io", Version: "v1beta1", Resource: "prioritylevelconfigurations"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("priorityLevelConfiguration-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().List(context.Background(), options)
+				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().Watch(context.Background(), options)
+				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().List(ctx, options)
+				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().Watch(ctx, options)
+				return client.FlowcontrolV1beta1().PriorityLevelConfigurations().Watch(ctx, opts)
 			},
 		}, client),
 		&apiflowcontrolv1beta1.PriorityLevelConfiguration{},

@@ -45,45 +45,70 @@ type ingressClassInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// IngressClassInformerOptions holds the options for creating a IngressClass informer.
+type IngressClassInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewIngressClassInformer constructs a new informer for IngressClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewIngressClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredIngressClassInformer(client, resyncPeriod, indexers, nil)
+	return NewIngressClassInformerWithOptions(client, resyncPeriod, indexers, IngressClassInformerOptions{})
+}
+
+// NewIngressClassInformerWithOptions constructs a new informer for IngressClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewIngressClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options IngressClassInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredIngressClassInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredIngressClassInformer constructs a new informer for IngressClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredIngressClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredIngressClassInformerWithOptions(client, resyncPeriod, indexers, IngressClassInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredIngressClassInformerWithOptions constructs a new informer for IngressClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredIngressClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options IngressClassInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1beta1", Resource: "ingressclasss"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("ingressClass-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().IngressClasses().List(context.Background(), options)
+				return client.NetworkingV1beta1().IngressClasses().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().IngressClasses().Watch(context.Background(), options)
+				return client.NetworkingV1beta1().IngressClasses().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().IngressClasses().List(ctx, options)
+				return client.NetworkingV1beta1().IngressClasses().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().IngressClasses().Watch(ctx, options)
+				return client.NetworkingV1beta1().IngressClasses().Watch(ctx, opts)
 			},
 		}, client),
 		&apinetworkingv1beta1.IngressClass{},

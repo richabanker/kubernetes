@@ -45,45 +45,70 @@ type storageClassInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// StorageClassInformerOptions holds the options for creating a StorageClass informer.
+type StorageClassInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewStorageClassInformer constructs a new informer for StorageClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewStorageClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredStorageClassInformer(client, resyncPeriod, indexers, nil)
+	return NewStorageClassInformerWithOptions(client, resyncPeriod, indexers, StorageClassInformerOptions{})
+}
+
+// NewStorageClassInformerWithOptions constructs a new informer for StorageClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewStorageClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageClassInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredStorageClassInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredStorageClassInformer constructs a new informer for StorageClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredStorageClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredStorageClassInformerWithOptions(client, resyncPeriod, indexers, StorageClassInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredStorageClassInformerWithOptions constructs a new informer for StorageClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredStorageClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageClassInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "storage.k8s.io", Version: "v1beta1", Resource: "storageclasss"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("storageClass-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().StorageClasses().List(context.Background(), options)
+				return client.StorageV1beta1().StorageClasses().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().StorageClasses().Watch(context.Background(), options)
+				return client.StorageV1beta1().StorageClasses().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().StorageClasses().List(ctx, options)
+				return client.StorageV1beta1().StorageClasses().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().StorageClasses().Watch(ctx, options)
+				return client.StorageV1beta1().StorageClasses().Watch(ctx, opts)
 			},
 		}, client),
 		&apistoragev1beta1.StorageClass{},

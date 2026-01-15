@@ -45,45 +45,70 @@ type serviceCIDRInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// ServiceCIDRInformerOptions holds the options for creating a ServiceCIDR informer.
+type ServiceCIDRInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewServiceCIDRInformer constructs a new informer for ServiceCIDR type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewServiceCIDRInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredServiceCIDRInformer(client, resyncPeriod, indexers, nil)
+	return NewServiceCIDRInformerWithOptions(client, resyncPeriod, indexers, ServiceCIDRInformerOptions{})
+}
+
+// NewServiceCIDRInformerWithOptions constructs a new informer for ServiceCIDR type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewServiceCIDRInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ServiceCIDRInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredServiceCIDRInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredServiceCIDRInformer constructs a new informer for ServiceCIDR type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredServiceCIDRInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredServiceCIDRInformerWithOptions(client, resyncPeriod, indexers, ServiceCIDRInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredServiceCIDRInformerWithOptions constructs a new informer for ServiceCIDR type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredServiceCIDRInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ServiceCIDRInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1beta1", Resource: "servicecidrs"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("serviceCIDR-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().ServiceCIDRs().List(context.Background(), options)
+				return client.NetworkingV1beta1().ServiceCIDRs().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().ServiceCIDRs().Watch(context.Background(), options)
+				return client.NetworkingV1beta1().ServiceCIDRs().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().ServiceCIDRs().List(ctx, options)
+				return client.NetworkingV1beta1().ServiceCIDRs().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NetworkingV1beta1().ServiceCIDRs().Watch(ctx, options)
+				return client.NetworkingV1beta1().ServiceCIDRs().Watch(ctx, opts)
 			},
 		}, client),
 		&apinetworkingv1beta1.ServiceCIDR{},

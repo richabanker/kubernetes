@@ -115,8 +115,11 @@ func (g *informerGenerator) GenerateType(c *generator.Context, t *types.Type, w 
 
 	sw.Do(typeInformerInterface, m)
 	sw.Do(typeInformerStruct, m)
+	sw.Do(typeInformerOptions, m)
 	sw.Do(typeInformerPublicConstructor, m)
+	sw.Do(typeInformerPublicConstructorWithOptions, m)
 	sw.Do(typeFilteredInformerPublicConstructor, m)
+	sw.Do(typeFilteredInformerPublicConstructorWithOptions, m)
 	sw.Do(typeInformerConstructor, m)
 	sw.Do(typeInformerInformer, m)
 	sw.Do(typeInformerLister, m)
@@ -141,12 +144,33 @@ type $.type|private$Informer struct {
 }
 `
 
+var typeInformerOptions = `
+// $.type|public$InformerOptions holds the options for creating a $.type|public$ informer.
+type $.type|public$InformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions $.interfacesTweakListOptionsFunc|raw$
+}
+`
+
 var typeInformerPublicConstructor = `
 // New$.type|public$Informer constructs a new informer for $.type|public$ type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func New$.type|public$Informer(client $.clientSetInterface|raw$$if .namespaced$, namespace string$end$, resyncPeriod $.timeDuration|raw$, indexers $.cacheIndexers|raw$) $.cacheSharedIndexInformer|raw$ {
-	return NewFiltered$.type|public$Informer(client$if .namespaced$, namespace$end$, resyncPeriod, indexers, nil)
+	return New$.type|public$InformerWithOptions(client$if .namespaced$, namespace$end$, resyncPeriod, indexers, $.type|public$InformerOptions{})
+}
+`
+
+var typeInformerPublicConstructorWithOptions = `
+// New$.type|public$InformerWithOptions constructs a new informer for $.type|public$ type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func New$.type|public$InformerWithOptions(client $.clientSetInterface|raw$$if .namespaced$, namespace string$end$, resyncPeriod $.timeDuration|raw$, indexers $.cacheIndexers|raw$, options $.type|public$InformerOptions) $.cacheSharedIndexInformer|raw$ {
+	return NewFiltered$.type|public$InformerWithOptions(client$if .namespaced$, namespace$end$, resyncPeriod, indexers, options)
 }
 `
 
@@ -155,34 +179,44 @@ var typeFilteredInformerPublicConstructor = `
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFiltered$.type|public$Informer(client $.clientSetInterface|raw$$if .namespaced$, namespace string$end$, resyncPeriod $.timeDuration|raw$, indexers $.cacheIndexers|raw$, tweakListOptions $.interfacesTweakListOptionsFunc|raw$) $.cacheSharedIndexInformer|raw$ {
+	return NewFiltered$.type|public$InformerWithOptions(client$if .namespaced$, namespace$end$, resyncPeriod, indexers, $.type|public$InformerOptions{TweakListOptions: tweakListOptions})
+}
+`
+
+var typeFilteredInformerPublicConstructorWithOptions = `
+// NewFiltered$.type|public$InformerWithOptions constructs a new informer for $.type|public$ type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFiltered$.type|public$InformerWithOptions(client $.clientSetInterface|raw$$if .namespaced$, namespace string$end$, resyncPeriod $.timeDuration|raw$, indexers $.cacheIndexers|raw$, options $.type|public$InformerOptions) $.cacheSharedIndexInformer|raw$ {
 	gvr := $.schemaGroupVersionResource|raw${Group: "$.groupName$", Version: "$.versionName$", Resource: "$.resourceName$"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := $.cacheNewIdentifier|raw$("$.type|private$-informer", gvr)
+	identifier, _ := $.cacheNewIdentifier|raw$(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return $.cacheNewSharedIndexInformerWithOptions|raw$(
 		$.cacheToListWatcherWithWatchListSemantics|raw$(&$.cacheListWatch|raw${
-			ListFunc: func(options $.v1ListOptions|raw$) ($.runtimeObject|raw$, error) {
+			ListFunc: func(opts $.v1ListOptions|raw$) ($.runtimeObject|raw$, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).List($.contextBackground|raw$(), options)
+				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).List($.contextBackground|raw$(), opts)
 			},
-			WatchFunc: func(options $.v1ListOptions|raw$) ($.watchInterface|raw$, error) {
+			WatchFunc: func(opts $.v1ListOptions|raw$) ($.watchInterface|raw$, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).Watch($.contextBackground|raw$(), options)
+				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).Watch($.contextBackground|raw$(), opts)
 			},
-			ListWithContextFunc: func(ctx $.contextContext|raw$, options $.v1ListOptions|raw$) ($.runtimeObject|raw$, error) {
+			ListWithContextFunc: func(ctx $.contextContext|raw$, opts $.v1ListOptions|raw$) ($.runtimeObject|raw$, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).List(ctx, options)
+				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx $.contextContext|raw$, options $.v1ListOptions|raw$) ($.watchInterface|raw$, error) {
+			WatchFuncWithContext: func(ctx $.contextContext|raw$, opts $.v1ListOptions|raw$) ($.watchInterface|raw$, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).Watch(ctx, options)
+				return client.$.group$$.version$().$.type|publicPlural$($if .namespaced$namespace$end$).Watch(ctx, opts)
 			},
 		}, client),
 		&$.type|raw${},

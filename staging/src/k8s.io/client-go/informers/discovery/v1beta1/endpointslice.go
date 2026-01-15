@@ -46,45 +46,70 @@ type endpointSliceInformer struct {
 	namespace        string
 }
 
+// EndpointSliceInformerOptions holds the options for creating a EndpointSlice informer.
+type EndpointSliceInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewEndpointSliceInformer constructs a new informer for EndpointSlice type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewEndpointSliceInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredEndpointSliceInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewEndpointSliceInformerWithOptions(client, namespace, resyncPeriod, indexers, EndpointSliceInformerOptions{})
+}
+
+// NewEndpointSliceInformerWithOptions constructs a new informer for EndpointSlice type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewEndpointSliceInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options EndpointSliceInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredEndpointSliceInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredEndpointSliceInformer constructs a new informer for EndpointSlice type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredEndpointSliceInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredEndpointSliceInformerWithOptions(client, namespace, resyncPeriod, indexers, EndpointSliceInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredEndpointSliceInformerWithOptions constructs a new informer for EndpointSlice type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredEndpointSliceInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options EndpointSliceInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "discovery.k8s.io", Version: "v1beta1", Resource: "endpointslices"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("endpointSlice-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.DiscoveryV1beta1().EndpointSlices(namespace).List(context.Background(), options)
+				return client.DiscoveryV1beta1().EndpointSlices(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.DiscoveryV1beta1().EndpointSlices(namespace).Watch(context.Background(), options)
+				return client.DiscoveryV1beta1().EndpointSlices(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.DiscoveryV1beta1().EndpointSlices(namespace).List(ctx, options)
+				return client.DiscoveryV1beta1().EndpointSlices(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.DiscoveryV1beta1().EndpointSlices(namespace).Watch(ctx, options)
+				return client.DiscoveryV1beta1().EndpointSlices(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apidiscoveryv1beta1.EndpointSlice{},

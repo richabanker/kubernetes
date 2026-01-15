@@ -45,45 +45,70 @@ type storageVersionInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// StorageVersionInformerOptions holds the options for creating a StorageVersion informer.
+type StorageVersionInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewStorageVersionInformer constructs a new informer for StorageVersion type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewStorageVersionInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredStorageVersionInformer(client, resyncPeriod, indexers, nil)
+	return NewStorageVersionInformerWithOptions(client, resyncPeriod, indexers, StorageVersionInformerOptions{})
+}
+
+// NewStorageVersionInformerWithOptions constructs a new informer for StorageVersion type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewStorageVersionInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageVersionInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredStorageVersionInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredStorageVersionInformer constructs a new informer for StorageVersion type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredStorageVersionInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredStorageVersionInformerWithOptions(client, resyncPeriod, indexers, StorageVersionInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredStorageVersionInformerWithOptions constructs a new informer for StorageVersion type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredStorageVersionInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageVersionInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "internal.apiserver.k8s.io", Version: "v1alpha1", Resource: "storageversions"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("storageVersion-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.InternalV1alpha1().StorageVersions().List(context.Background(), options)
+				return client.InternalV1alpha1().StorageVersions().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.InternalV1alpha1().StorageVersions().Watch(context.Background(), options)
+				return client.InternalV1alpha1().StorageVersions().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.InternalV1alpha1().StorageVersions().List(ctx, options)
+				return client.InternalV1alpha1().StorageVersions().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.InternalV1alpha1().StorageVersions().Watch(ctx, options)
+				return client.InternalV1alpha1().StorageVersions().Watch(ctx, opts)
 			},
 		}, client),
 		&apiapiserverinternalv1alpha1.StorageVersion{},

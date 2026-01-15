@@ -46,45 +46,70 @@ type deploymentInformer struct {
 	namespace        string
 }
 
+// DeploymentInformerOptions holds the options for creating a Deployment informer.
+type DeploymentInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewDeploymentInformer constructs a new informer for Deployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewDeploymentInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredDeploymentInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewDeploymentInformerWithOptions(client, namespace, resyncPeriod, indexers, DeploymentInformerOptions{})
+}
+
+// NewDeploymentInformerWithOptions constructs a new informer for Deployment type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewDeploymentInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options DeploymentInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredDeploymentInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredDeploymentInformer constructs a new informer for Deployment type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredDeploymentInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredDeploymentInformerWithOptions(client, namespace, resyncPeriod, indexers, DeploymentInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredDeploymentInformerWithOptions constructs a new informer for Deployment type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredDeploymentInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options DeploymentInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "deployments"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("deployment-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().Deployments(namespace).List(context.Background(), options)
+				return client.ExtensionsV1beta1().Deployments(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().Deployments(namespace).Watch(context.Background(), options)
+				return client.ExtensionsV1beta1().Deployments(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().Deployments(namespace).List(ctx, options)
+				return client.ExtensionsV1beta1().Deployments(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().Deployments(namespace).Watch(ctx, options)
+				return client.ExtensionsV1beta1().Deployments(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiextensionsv1beta1.Deployment{},

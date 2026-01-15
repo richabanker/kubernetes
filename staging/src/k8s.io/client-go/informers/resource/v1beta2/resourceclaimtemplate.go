@@ -46,45 +46,70 @@ type resourceClaimTemplateInformer struct {
 	namespace        string
 }
 
+// ResourceClaimTemplateInformerOptions holds the options for creating a ResourceClaimTemplate informer.
+type ResourceClaimTemplateInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewResourceClaimTemplateInformer constructs a new informer for ResourceClaimTemplate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewResourceClaimTemplateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredResourceClaimTemplateInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewResourceClaimTemplateInformerWithOptions(client, namespace, resyncPeriod, indexers, ResourceClaimTemplateInformerOptions{})
+}
+
+// NewResourceClaimTemplateInformerWithOptions constructs a new informer for ResourceClaimTemplate type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewResourceClaimTemplateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ResourceClaimTemplateInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredResourceClaimTemplateInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredResourceClaimTemplateInformer constructs a new informer for ResourceClaimTemplate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredResourceClaimTemplateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredResourceClaimTemplateInformerWithOptions(client, namespace, resyncPeriod, indexers, ResourceClaimTemplateInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredResourceClaimTemplateInformerWithOptions constructs a new informer for ResourceClaimTemplate type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredResourceClaimTemplateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ResourceClaimTemplateInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "resource.k8s.io", Version: "v1beta2", Resource: "resourceclaimtemplates"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("resourceClaimTemplate-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).List(context.Background(), options)
+				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).Watch(context.Background(), options)
+				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).List(ctx, options)
+				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).Watch(ctx, options)
+				return client.ResourceV1beta2().ResourceClaimTemplates(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiresourcev1beta2.ResourceClaimTemplate{},

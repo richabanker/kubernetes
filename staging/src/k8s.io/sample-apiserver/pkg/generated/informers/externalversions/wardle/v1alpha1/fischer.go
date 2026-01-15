@@ -45,45 +45,70 @@ type fischerInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// FischerInformerOptions holds the options for creating a Fischer informer.
+type FischerInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewFischerInformer constructs a new informer for Fischer type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFischerInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFischerInformer(client, resyncPeriod, indexers, nil)
+	return NewFischerInformerWithOptions(client, resyncPeriod, indexers, FischerInformerOptions{})
+}
+
+// NewFischerInformerWithOptions constructs a new informer for Fischer type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFischerInformerWithOptions(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options FischerInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredFischerInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredFischerInformer constructs a new informer for Fischer type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredFischerInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredFischerInformerWithOptions(client, resyncPeriod, indexers, FischerInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredFischerInformerWithOptions constructs a new informer for Fischer type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredFischerInformerWithOptions(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options FischerInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "wardle.example.com", Version: "v1alpha1", Resource: "fischers"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("fischer-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1alpha1().Fischers().List(context.Background(), options)
+				return client.WardleV1alpha1().Fischers().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1alpha1().Fischers().Watch(context.Background(), options)
+				return client.WardleV1alpha1().Fischers().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1alpha1().Fischers().List(ctx, options)
+				return client.WardleV1alpha1().Fischers().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1alpha1().Fischers().Watch(ctx, options)
+				return client.WardleV1alpha1().Fischers().Watch(ctx, opts)
 			},
 		}, client),
 		&apiswardlev1alpha1.Fischer{},

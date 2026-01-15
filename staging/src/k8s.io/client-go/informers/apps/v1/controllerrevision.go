@@ -46,45 +46,70 @@ type controllerRevisionInformer struct {
 	namespace        string
 }
 
+// ControllerRevisionInformerOptions holds the options for creating a ControllerRevision informer.
+type ControllerRevisionInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewControllerRevisionInformer constructs a new informer for ControllerRevision type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewControllerRevisionInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredControllerRevisionInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewControllerRevisionInformerWithOptions(client, namespace, resyncPeriod, indexers, ControllerRevisionInformerOptions{})
+}
+
+// NewControllerRevisionInformerWithOptions constructs a new informer for ControllerRevision type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewControllerRevisionInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ControllerRevisionInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredControllerRevisionInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredControllerRevisionInformer constructs a new informer for ControllerRevision type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredControllerRevisionInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredControllerRevisionInformerWithOptions(client, namespace, resyncPeriod, indexers, ControllerRevisionInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredControllerRevisionInformerWithOptions constructs a new informer for ControllerRevision type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredControllerRevisionInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ControllerRevisionInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "controllerrevisions"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("controllerRevision-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1().ControllerRevisions(namespace).List(context.Background(), options)
+				return client.AppsV1().ControllerRevisions(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1().ControllerRevisions(namespace).Watch(context.Background(), options)
+				return client.AppsV1().ControllerRevisions(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1().ControllerRevisions(namespace).List(ctx, options)
+				return client.AppsV1().ControllerRevisions(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1().ControllerRevisions(namespace).Watch(ctx, options)
+				return client.AppsV1().ControllerRevisions(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiappsv1.ControllerRevision{},

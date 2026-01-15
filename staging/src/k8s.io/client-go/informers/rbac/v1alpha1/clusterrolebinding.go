@@ -45,45 +45,70 @@ type clusterRoleBindingInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// ClusterRoleBindingInformerOptions holds the options for creating a ClusterRoleBinding informer.
+type ClusterRoleBindingInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewClusterRoleBindingInformer constructs a new informer for ClusterRoleBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewClusterRoleBindingInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredClusterRoleBindingInformer(client, resyncPeriod, indexers, nil)
+	return NewClusterRoleBindingInformerWithOptions(client, resyncPeriod, indexers, ClusterRoleBindingInformerOptions{})
+}
+
+// NewClusterRoleBindingInformerWithOptions constructs a new informer for ClusterRoleBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewClusterRoleBindingInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ClusterRoleBindingInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredClusterRoleBindingInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredClusterRoleBindingInformer constructs a new informer for ClusterRoleBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredClusterRoleBindingInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredClusterRoleBindingInformerWithOptions(client, resyncPeriod, indexers, ClusterRoleBindingInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredClusterRoleBindingInformerWithOptions constructs a new informer for ClusterRoleBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredClusterRoleBindingInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ClusterRoleBindingInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Resource: "clusterrolebindings"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("clusterRoleBinding-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1alpha1().ClusterRoleBindings().List(context.Background(), options)
+				return client.RbacV1alpha1().ClusterRoleBindings().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1alpha1().ClusterRoleBindings().Watch(context.Background(), options)
+				return client.RbacV1alpha1().ClusterRoleBindings().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1alpha1().ClusterRoleBindings().List(ctx, options)
+				return client.RbacV1alpha1().ClusterRoleBindings().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1alpha1().ClusterRoleBindings().Watch(ctx, options)
+				return client.RbacV1alpha1().ClusterRoleBindings().Watch(ctx, opts)
 			},
 		}, client),
 		&apirbacv1alpha1.ClusterRoleBinding{},

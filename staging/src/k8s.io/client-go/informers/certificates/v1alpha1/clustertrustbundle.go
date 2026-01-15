@@ -45,45 +45,70 @@ type clusterTrustBundleInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// ClusterTrustBundleInformerOptions holds the options for creating a ClusterTrustBundle informer.
+type ClusterTrustBundleInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewClusterTrustBundleInformer constructs a new informer for ClusterTrustBundle type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewClusterTrustBundleInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredClusterTrustBundleInformer(client, resyncPeriod, indexers, nil)
+	return NewClusterTrustBundleInformerWithOptions(client, resyncPeriod, indexers, ClusterTrustBundleInformerOptions{})
+}
+
+// NewClusterTrustBundleInformerWithOptions constructs a new informer for ClusterTrustBundle type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewClusterTrustBundleInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ClusterTrustBundleInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredClusterTrustBundleInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredClusterTrustBundleInformer constructs a new informer for ClusterTrustBundle type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredClusterTrustBundleInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredClusterTrustBundleInformerWithOptions(client, resyncPeriod, indexers, ClusterTrustBundleInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredClusterTrustBundleInformerWithOptions constructs a new informer for ClusterTrustBundle type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredClusterTrustBundleInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ClusterTrustBundleInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "certificates.k8s.io", Version: "v1alpha1", Resource: "clustertrustbundles"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("clusterTrustBundle-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1alpha1().ClusterTrustBundles().List(context.Background(), options)
+				return client.CertificatesV1alpha1().ClusterTrustBundles().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1alpha1().ClusterTrustBundles().Watch(context.Background(), options)
+				return client.CertificatesV1alpha1().ClusterTrustBundles().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1alpha1().ClusterTrustBundles().List(ctx, options)
+				return client.CertificatesV1alpha1().ClusterTrustBundles().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1alpha1().ClusterTrustBundles().Watch(ctx, options)
+				return client.CertificatesV1alpha1().ClusterTrustBundles().Watch(ctx, opts)
 			},
 		}, client),
 		&apicertificatesv1alpha1.ClusterTrustBundle{},

@@ -46,45 +46,70 @@ type roleBindingInformer struct {
 	namespace        string
 }
 
+// RoleBindingInformerOptions holds the options for creating a RoleBinding informer.
+type RoleBindingInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewRoleBindingInformer constructs a new informer for RoleBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewRoleBindingInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredRoleBindingInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewRoleBindingInformerWithOptions(client, namespace, resyncPeriod, indexers, RoleBindingInformerOptions{})
+}
+
+// NewRoleBindingInformerWithOptions constructs a new informer for RoleBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewRoleBindingInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options RoleBindingInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredRoleBindingInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredRoleBindingInformer constructs a new informer for RoleBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredRoleBindingInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredRoleBindingInformerWithOptions(client, namespace, resyncPeriod, indexers, RoleBindingInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredRoleBindingInformerWithOptions constructs a new informer for RoleBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredRoleBindingInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options RoleBindingInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "rolebindings"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("roleBinding-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1().RoleBindings(namespace).List(context.Background(), options)
+				return client.RbacV1().RoleBindings(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1().RoleBindings(namespace).Watch(context.Background(), options)
+				return client.RbacV1().RoleBindings(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1().RoleBindings(namespace).List(ctx, options)
+				return client.RbacV1().RoleBindings(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.RbacV1().RoleBindings(namespace).Watch(ctx, options)
+				return client.RbacV1().RoleBindings(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apirbacv1.RoleBinding{},

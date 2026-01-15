@@ -45,45 +45,70 @@ type namespaceInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// NamespaceInformerOptions holds the options for creating a Namespace informer.
+type NamespaceInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewNamespaceInformer constructs a new informer for Namespace type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewNamespaceInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredNamespaceInformer(client, resyncPeriod, indexers, nil)
+	return NewNamespaceInformerWithOptions(client, resyncPeriod, indexers, NamespaceInformerOptions{})
+}
+
+// NewNamespaceInformerWithOptions constructs a new informer for Namespace type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewNamespaceInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options NamespaceInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredNamespaceInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredNamespaceInformer constructs a new informer for Namespace type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredNamespaceInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredNamespaceInformerWithOptions(client, resyncPeriod, indexers, NamespaceInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredNamespaceInformerWithOptions constructs a new informer for Namespace type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredNamespaceInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options NamespaceInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("namespace-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().Namespaces().List(context.Background(), options)
+				return client.CoreV1().Namespaces().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().Namespaces().Watch(context.Background(), options)
+				return client.CoreV1().Namespaces().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().Namespaces().List(ctx, options)
+				return client.CoreV1().Namespaces().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().Namespaces().Watch(ctx, options)
+				return client.CoreV1().Namespaces().Watch(ctx, opts)
 			},
 		}, client),
 		&apicorev1.Namespace{},

@@ -46,45 +46,70 @@ type testTypeInformer struct {
 	namespace        string
 }
 
+// TestTypeInformerOptions holds the options for creating a TestType informer.
+type TestTypeInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewTestTypeInformer constructs a new informer for TestType type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewTestTypeInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredTestTypeInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewTestTypeInformerWithOptions(client, namespace, resyncPeriod, indexers, TestTypeInformerOptions{})
+}
+
+// NewTestTypeInformerWithOptions constructs a new informer for TestType type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTestTypeInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options TestTypeInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredTestTypeInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredTestTypeInformer constructs a new informer for TestType type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredTestTypeInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredTestTypeInformerWithOptions(client, namespace, resyncPeriod, indexers, TestTypeInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredTestTypeInformerWithOptions constructs a new informer for TestType type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredTestTypeInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options TestTypeInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "example.apiserver.code-generator.k8s.io", Version: "v1", Resource: "testtypes"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("testType-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().TestTypes(namespace).List(context.Background(), options)
+				return client.ExampleV1().TestTypes(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().TestTypes(namespace).Watch(context.Background(), options)
+				return client.ExampleV1().TestTypes(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().TestTypes(namespace).List(ctx, options)
+				return client.ExampleV1().TestTypes(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().TestTypes(namespace).Watch(ctx, options)
+				return client.ExampleV1().TestTypes(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apisexamplev1.TestType{},

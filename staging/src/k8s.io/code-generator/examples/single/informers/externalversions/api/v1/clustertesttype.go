@@ -45,45 +45,70 @@ type clusterTestTypeInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// ClusterTestTypeInformerOptions holds the options for creating a ClusterTestType informer.
+type ClusterTestTypeInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewClusterTestTypeInformer constructs a new informer for ClusterTestType type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewClusterTestTypeInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredClusterTestTypeInformer(client, resyncPeriod, indexers, nil)
+	return NewClusterTestTypeInformerWithOptions(client, resyncPeriod, indexers, ClusterTestTypeInformerOptions{})
+}
+
+// NewClusterTestTypeInformerWithOptions constructs a new informer for ClusterTestType type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewClusterTestTypeInformerWithOptions(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ClusterTestTypeInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredClusterTestTypeInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredClusterTestTypeInformer constructs a new informer for ClusterTestType type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredClusterTestTypeInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredClusterTestTypeInformerWithOptions(client, resyncPeriod, indexers, ClusterTestTypeInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredClusterTestTypeInformerWithOptions constructs a new informer for ClusterTestType type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredClusterTestTypeInformerWithOptions(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ClusterTestTypeInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "example.crd.code-generator.k8s.io", Version: "v1", Resource: "clustertesttypes"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("clusterTestType-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().ClusterTestTypes().List(context.Background(), options)
+				return client.ExampleV1().ClusterTestTypes().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().ClusterTestTypes().Watch(context.Background(), options)
+				return client.ExampleV1().ClusterTestTypes().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().ClusterTestTypes().List(ctx, options)
+				return client.ExampleV1().ClusterTestTypes().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExampleV1().ClusterTestTypes().Watch(ctx, options)
+				return client.ExampleV1().ClusterTestTypes().Watch(ctx, opts)
 			},
 		}, client),
 		&singleapiv1.ClusterTestType{},

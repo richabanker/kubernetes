@@ -46,45 +46,70 @@ type podCertificateRequestInformer struct {
 	namespace        string
 }
 
+// PodCertificateRequestInformerOptions holds the options for creating a PodCertificateRequest informer.
+type PodCertificateRequestInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewPodCertificateRequestInformer constructs a new informer for PodCertificateRequest type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewPodCertificateRequestInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPodCertificateRequestInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewPodCertificateRequestInformerWithOptions(client, namespace, resyncPeriod, indexers, PodCertificateRequestInformerOptions{})
+}
+
+// NewPodCertificateRequestInformerWithOptions constructs a new informer for PodCertificateRequest type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewPodCertificateRequestInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options PodCertificateRequestInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredPodCertificateRequestInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredPodCertificateRequestInformer constructs a new informer for PodCertificateRequest type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredPodCertificateRequestInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredPodCertificateRequestInformerWithOptions(client, namespace, resyncPeriod, indexers, PodCertificateRequestInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredPodCertificateRequestInformerWithOptions constructs a new informer for PodCertificateRequest type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredPodCertificateRequestInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options PodCertificateRequestInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "certificates.k8s.io", Version: "v1beta1", Resource: "podcertificaterequests"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("podCertificateRequest-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1beta1().PodCertificateRequests(namespace).List(context.Background(), options)
+				return client.CertificatesV1beta1().PodCertificateRequests(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1beta1().PodCertificateRequests(namespace).Watch(context.Background(), options)
+				return client.CertificatesV1beta1().PodCertificateRequests(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1beta1().PodCertificateRequests(namespace).List(ctx, options)
+				return client.CertificatesV1beta1().PodCertificateRequests(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CertificatesV1beta1().PodCertificateRequests(namespace).Watch(ctx, options)
+				return client.CertificatesV1beta1().PodCertificateRequests(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apicertificatesv1beta1.PodCertificateRequest{},

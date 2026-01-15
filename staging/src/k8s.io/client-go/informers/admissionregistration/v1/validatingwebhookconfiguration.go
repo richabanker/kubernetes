@@ -45,45 +45,70 @@ type validatingWebhookConfigurationInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// ValidatingWebhookConfigurationInformerOptions holds the options for creating a ValidatingWebhookConfiguration informer.
+type ValidatingWebhookConfigurationInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewValidatingWebhookConfigurationInformer constructs a new informer for ValidatingWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewValidatingWebhookConfigurationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredValidatingWebhookConfigurationInformer(client, resyncPeriod, indexers, nil)
+	return NewValidatingWebhookConfigurationInformerWithOptions(client, resyncPeriod, indexers, ValidatingWebhookConfigurationInformerOptions{})
+}
+
+// NewValidatingWebhookConfigurationInformerWithOptions constructs a new informer for ValidatingWebhookConfiguration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewValidatingWebhookConfigurationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ValidatingWebhookConfigurationInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredValidatingWebhookConfigurationInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredValidatingWebhookConfigurationInformer constructs a new informer for ValidatingWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredValidatingWebhookConfigurationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredValidatingWebhookConfigurationInformerWithOptions(client, resyncPeriod, indexers, ValidatingWebhookConfigurationInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredValidatingWebhookConfigurationInformerWithOptions constructs a new informer for ValidatingWebhookConfiguration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredValidatingWebhookConfigurationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ValidatingWebhookConfigurationInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "admissionregistration.k8s.io", Version: "v1", Resource: "validatingwebhookconfigurations"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("validatingWebhookConfiguration-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(context.Background(), options)
+				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().Watch(context.Background(), options)
+				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(ctx, options)
+				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().Watch(ctx, options)
+				return client.AdmissionregistrationV1().ValidatingWebhookConfigurations().Watch(ctx, opts)
 			},
 		}, client),
 		&apiadmissionregistrationv1.ValidatingWebhookConfiguration{},

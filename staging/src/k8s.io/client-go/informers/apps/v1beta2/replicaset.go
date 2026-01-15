@@ -46,45 +46,70 @@ type replicaSetInformer struct {
 	namespace        string
 }
 
+// ReplicaSetInformerOptions holds the options for creating a ReplicaSet informer.
+type ReplicaSetInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewReplicaSetInformer constructs a new informer for ReplicaSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewReplicaSetInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredReplicaSetInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewReplicaSetInformerWithOptions(client, namespace, resyncPeriod, indexers, ReplicaSetInformerOptions{})
+}
+
+// NewReplicaSetInformerWithOptions constructs a new informer for ReplicaSet type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewReplicaSetInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ReplicaSetInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredReplicaSetInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredReplicaSetInformer constructs a new informer for ReplicaSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredReplicaSetInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredReplicaSetInformerWithOptions(client, namespace, resyncPeriod, indexers, ReplicaSetInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredReplicaSetInformerWithOptions constructs a new informer for ReplicaSet type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredReplicaSetInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ReplicaSetInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "apps", Version: "v1beta2", Resource: "replicasets"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("replicaSet-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1beta2().ReplicaSets(namespace).List(context.Background(), options)
+				return client.AppsV1beta2().ReplicaSets(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1beta2().ReplicaSets(namespace).Watch(context.Background(), options)
+				return client.AppsV1beta2().ReplicaSets(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1beta2().ReplicaSets(namespace).List(ctx, options)
+				return client.AppsV1beta2().ReplicaSets(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AppsV1beta2().ReplicaSets(namespace).Watch(ctx, options)
+				return client.AppsV1beta2().ReplicaSets(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiappsv1beta2.ReplicaSet{},

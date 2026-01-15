@@ -45,45 +45,70 @@ type cSIDriverInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// CSIDriverInformerOptions holds the options for creating a CSIDriver informer.
+type CSIDriverInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewCSIDriverInformer constructs a new informer for CSIDriver type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewCSIDriverInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredCSIDriverInformer(client, resyncPeriod, indexers, nil)
+	return NewCSIDriverInformerWithOptions(client, resyncPeriod, indexers, CSIDriverInformerOptions{})
+}
+
+// NewCSIDriverInformerWithOptions constructs a new informer for CSIDriver type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewCSIDriverInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options CSIDriverInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredCSIDriverInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredCSIDriverInformer constructs a new informer for CSIDriver type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredCSIDriverInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredCSIDriverInformerWithOptions(client, resyncPeriod, indexers, CSIDriverInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredCSIDriverInformerWithOptions constructs a new informer for CSIDriver type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredCSIDriverInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options CSIDriverInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "storage.k8s.io", Version: "v1beta1", Resource: "csidrivers"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("cSIDriver-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().CSIDrivers().List(context.Background(), options)
+				return client.StorageV1beta1().CSIDrivers().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().CSIDrivers().Watch(context.Background(), options)
+				return client.StorageV1beta1().CSIDrivers().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().CSIDrivers().List(ctx, options)
+				return client.StorageV1beta1().CSIDrivers().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1beta1().CSIDrivers().Watch(ctx, options)
+				return client.StorageV1beta1().CSIDrivers().Watch(ctx, opts)
 			},
 		}, client),
 		&apistoragev1beta1.CSIDriver{},

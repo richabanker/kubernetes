@@ -45,45 +45,70 @@ type flowSchemaInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// FlowSchemaInformerOptions holds the options for creating a FlowSchema informer.
+type FlowSchemaInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewFlowSchemaInformer constructs a new informer for FlowSchema type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFlowSchemaInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFlowSchemaInformer(client, resyncPeriod, indexers, nil)
+	return NewFlowSchemaInformerWithOptions(client, resyncPeriod, indexers, FlowSchemaInformerOptions{})
+}
+
+// NewFlowSchemaInformerWithOptions constructs a new informer for FlowSchema type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFlowSchemaInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options FlowSchemaInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredFlowSchemaInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredFlowSchemaInformer constructs a new informer for FlowSchema type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredFlowSchemaInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredFlowSchemaInformerWithOptions(client, resyncPeriod, indexers, FlowSchemaInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredFlowSchemaInformerWithOptions constructs a new informer for FlowSchema type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredFlowSchemaInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options FlowSchemaInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "flowcontrol.apiserver.k8s.io", Version: "v1beta3", Resource: "flowschemas"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("flowSchema-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta3().FlowSchemas().List(context.Background(), options)
+				return client.FlowcontrolV1beta3().FlowSchemas().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta3().FlowSchemas().Watch(context.Background(), options)
+				return client.FlowcontrolV1beta3().FlowSchemas().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta3().FlowSchemas().List(ctx, options)
+				return client.FlowcontrolV1beta3().FlowSchemas().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.FlowcontrolV1beta3().FlowSchemas().Watch(ctx, options)
+				return client.FlowcontrolV1beta3().FlowSchemas().Watch(ctx, opts)
 			},
 		}, client),
 		&apiflowcontrolv1beta3.FlowSchema{},

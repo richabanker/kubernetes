@@ -46,45 +46,70 @@ type cronJobInformer struct {
 	namespace        string
 }
 
+// CronJobInformerOptions holds the options for creating a CronJob informer.
+type CronJobInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewCronJobInformer constructs a new informer for CronJob type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewCronJobInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredCronJobInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewCronJobInformerWithOptions(client, namespace, resyncPeriod, indexers, CronJobInformerOptions{})
+}
+
+// NewCronJobInformerWithOptions constructs a new informer for CronJob type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewCronJobInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options CronJobInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredCronJobInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredCronJobInformer constructs a new informer for CronJob type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredCronJobInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredCronJobInformerWithOptions(client, namespace, resyncPeriod, indexers, CronJobInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredCronJobInformerWithOptions constructs a new informer for CronJob type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredCronJobInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options CronJobInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "batch", Version: "v1beta1", Resource: "cronjobs"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("cronJob-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.BatchV1beta1().CronJobs(namespace).List(context.Background(), options)
+				return client.BatchV1beta1().CronJobs(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.BatchV1beta1().CronJobs(namespace).Watch(context.Background(), options)
+				return client.BatchV1beta1().CronJobs(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.BatchV1beta1().CronJobs(namespace).List(ctx, options)
+				return client.BatchV1beta1().CronJobs(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.BatchV1beta1().CronJobs(namespace).Watch(ctx, options)
+				return client.BatchV1beta1().CronJobs(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apibatchv1beta1.CronJob{},

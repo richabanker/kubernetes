@@ -45,45 +45,70 @@ type customResourceDefinitionInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// CustomResourceDefinitionInformerOptions holds the options for creating a CustomResourceDefinition informer.
+type CustomResourceDefinitionInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewCustomResourceDefinitionInformer constructs a new informer for CustomResourceDefinition type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewCustomResourceDefinitionInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredCustomResourceDefinitionInformer(client, resyncPeriod, indexers, nil)
+	return NewCustomResourceDefinitionInformerWithOptions(client, resyncPeriod, indexers, CustomResourceDefinitionInformerOptions{})
+}
+
+// NewCustomResourceDefinitionInformerWithOptions constructs a new informer for CustomResourceDefinition type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewCustomResourceDefinitionInformerWithOptions(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options CustomResourceDefinitionInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredCustomResourceDefinitionInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredCustomResourceDefinitionInformer constructs a new informer for CustomResourceDefinition type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredCustomResourceDefinitionInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredCustomResourceDefinitionInformerWithOptions(client, resyncPeriod, indexers, CustomResourceDefinitionInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredCustomResourceDefinitionInformerWithOptions constructs a new informer for CustomResourceDefinition type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredCustomResourceDefinitionInformerWithOptions(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options CustomResourceDefinitionInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1beta1", Resource: "customresourcedefinitions"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("customResourceDefinition-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ApiextensionsV1beta1().CustomResourceDefinitions().List(context.Background(), options)
+				return client.ApiextensionsV1beta1().CustomResourceDefinitions().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ApiextensionsV1beta1().CustomResourceDefinitions().Watch(context.Background(), options)
+				return client.ApiextensionsV1beta1().CustomResourceDefinitions().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ApiextensionsV1beta1().CustomResourceDefinitions().List(ctx, options)
+				return client.ApiextensionsV1beta1().CustomResourceDefinitions().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ApiextensionsV1beta1().CustomResourceDefinitions().Watch(ctx, options)
+				return client.ApiextensionsV1beta1().CustomResourceDefinitions().Watch(ctx, opts)
 			},
 		}, client),
 		&apisapiextensionsv1beta1.CustomResourceDefinition{},

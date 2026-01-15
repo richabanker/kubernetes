@@ -46,45 +46,70 @@ type flunderInformer struct {
 	namespace        string
 }
 
+// FlunderInformerOptions holds the options for creating a Flunder informer.
+type FlunderInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewFlunderInformer constructs a new informer for Flunder type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFlunderInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFlunderInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewFlunderInformerWithOptions(client, namespace, resyncPeriod, indexers, FlunderInformerOptions{})
+}
+
+// NewFlunderInformerWithOptions constructs a new informer for Flunder type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFlunderInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options FlunderInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredFlunderInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredFlunderInformer constructs a new informer for Flunder type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredFlunderInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredFlunderInformerWithOptions(client, namespace, resyncPeriod, indexers, FlunderInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredFlunderInformerWithOptions constructs a new informer for Flunder type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredFlunderInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options FlunderInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "wardle.example.com", Version: "v1beta1", Resource: "flunders"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("flunder-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1beta1().Flunders(namespace).List(context.Background(), options)
+				return client.WardleV1beta1().Flunders(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1beta1().Flunders(namespace).Watch(context.Background(), options)
+				return client.WardleV1beta1().Flunders(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1beta1().Flunders(namespace).List(ctx, options)
+				return client.WardleV1beta1().Flunders(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.WardleV1beta1().Flunders(namespace).Watch(ctx, options)
+				return client.WardleV1beta1().Flunders(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiswardlev1beta1.Flunder{},

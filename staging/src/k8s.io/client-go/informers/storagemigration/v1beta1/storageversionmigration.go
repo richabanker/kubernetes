@@ -45,45 +45,70 @@ type storageVersionMigrationInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// StorageVersionMigrationInformerOptions holds the options for creating a StorageVersionMigration informer.
+type StorageVersionMigrationInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewStorageVersionMigrationInformer constructs a new informer for StorageVersionMigration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewStorageVersionMigrationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredStorageVersionMigrationInformer(client, resyncPeriod, indexers, nil)
+	return NewStorageVersionMigrationInformerWithOptions(client, resyncPeriod, indexers, StorageVersionMigrationInformerOptions{})
+}
+
+// NewStorageVersionMigrationInformerWithOptions constructs a new informer for StorageVersionMigration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewStorageVersionMigrationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageVersionMigrationInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredStorageVersionMigrationInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredStorageVersionMigrationInformer constructs a new informer for StorageVersionMigration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredStorageVersionMigrationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredStorageVersionMigrationInformerWithOptions(client, resyncPeriod, indexers, StorageVersionMigrationInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredStorageVersionMigrationInformerWithOptions constructs a new informer for StorageVersionMigration type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredStorageVersionMigrationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageVersionMigrationInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "storagemigration.k8s.io", Version: "v1beta1", Resource: "storageversionmigrations"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("storageVersionMigration-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StoragemigrationV1beta1().StorageVersionMigrations().List(context.Background(), options)
+				return client.StoragemigrationV1beta1().StorageVersionMigrations().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StoragemigrationV1beta1().StorageVersionMigrations().Watch(context.Background(), options)
+				return client.StoragemigrationV1beta1().StorageVersionMigrations().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StoragemigrationV1beta1().StorageVersionMigrations().List(ctx, options)
+				return client.StoragemigrationV1beta1().StorageVersionMigrations().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StoragemigrationV1beta1().StorageVersionMigrations().Watch(ctx, options)
+				return client.StoragemigrationV1beta1().StorageVersionMigrations().Watch(ctx, opts)
 			},
 		}, client),
 		&apistoragemigrationv1beta1.StorageVersionMigration{},

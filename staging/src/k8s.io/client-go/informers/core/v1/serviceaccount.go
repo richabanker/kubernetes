@@ -46,45 +46,70 @@ type serviceAccountInformer struct {
 	namespace        string
 }
 
+// ServiceAccountInformerOptions holds the options for creating a ServiceAccount informer.
+type ServiceAccountInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewServiceAccountInformer constructs a new informer for ServiceAccount type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewServiceAccountInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredServiceAccountInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewServiceAccountInformerWithOptions(client, namespace, resyncPeriod, indexers, ServiceAccountInformerOptions{})
+}
+
+// NewServiceAccountInformerWithOptions constructs a new informer for ServiceAccount type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewServiceAccountInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ServiceAccountInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredServiceAccountInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredServiceAccountInformer constructs a new informer for ServiceAccount type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredServiceAccountInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredServiceAccountInformerWithOptions(client, namespace, resyncPeriod, indexers, ServiceAccountInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredServiceAccountInformerWithOptions constructs a new informer for ServiceAccount type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredServiceAccountInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ServiceAccountInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "serviceaccounts"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("serviceAccount-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().ServiceAccounts(namespace).List(context.Background(), options)
+				return client.CoreV1().ServiceAccounts(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().ServiceAccounts(namespace).Watch(context.Background(), options)
+				return client.CoreV1().ServiceAccounts(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().ServiceAccounts(namespace).List(ctx, options)
+				return client.CoreV1().ServiceAccounts(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().ServiceAccounts(namespace).Watch(ctx, options)
+				return client.CoreV1().ServiceAccounts(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apicorev1.ServiceAccount{},

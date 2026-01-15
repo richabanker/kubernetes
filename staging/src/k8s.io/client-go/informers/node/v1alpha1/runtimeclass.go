@@ -45,45 +45,70 @@ type runtimeClassInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// RuntimeClassInformerOptions holds the options for creating a RuntimeClass informer.
+type RuntimeClassInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewRuntimeClassInformer constructs a new informer for RuntimeClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewRuntimeClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredRuntimeClassInformer(client, resyncPeriod, indexers, nil)
+	return NewRuntimeClassInformerWithOptions(client, resyncPeriod, indexers, RuntimeClassInformerOptions{})
+}
+
+// NewRuntimeClassInformerWithOptions constructs a new informer for RuntimeClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewRuntimeClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options RuntimeClassInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredRuntimeClassInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredRuntimeClassInformer constructs a new informer for RuntimeClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredRuntimeClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredRuntimeClassInformerWithOptions(client, resyncPeriod, indexers, RuntimeClassInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredRuntimeClassInformerWithOptions constructs a new informer for RuntimeClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredRuntimeClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options RuntimeClassInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "node.k8s.io", Version: "v1alpha1", Resource: "runtimeclasss"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("runtimeClass-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NodeV1alpha1().RuntimeClasses().List(context.Background(), options)
+				return client.NodeV1alpha1().RuntimeClasses().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NodeV1alpha1().RuntimeClasses().Watch(context.Background(), options)
+				return client.NodeV1alpha1().RuntimeClasses().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NodeV1alpha1().RuntimeClasses().List(ctx, options)
+				return client.NodeV1alpha1().RuntimeClasses().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.NodeV1alpha1().RuntimeClasses().Watch(ctx, options)
+				return client.NodeV1alpha1().RuntimeClasses().Watch(ctx, opts)
 			},
 		}, client),
 		&apinodev1alpha1.RuntimeClass{},

@@ -46,45 +46,70 @@ type horizontalPodAutoscalerInformer struct {
 	namespace        string
 }
 
+// HorizontalPodAutoscalerInformerOptions holds the options for creating a HorizontalPodAutoscaler informer.
+type HorizontalPodAutoscalerInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewHorizontalPodAutoscalerInformer constructs a new informer for HorizontalPodAutoscaler type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewHorizontalPodAutoscalerInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredHorizontalPodAutoscalerInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewHorizontalPodAutoscalerInformerWithOptions(client, namespace, resyncPeriod, indexers, HorizontalPodAutoscalerInformerOptions{})
+}
+
+// NewHorizontalPodAutoscalerInformerWithOptions constructs a new informer for HorizontalPodAutoscaler type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewHorizontalPodAutoscalerInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options HorizontalPodAutoscalerInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredHorizontalPodAutoscalerInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredHorizontalPodAutoscalerInformer constructs a new informer for HorizontalPodAutoscaler type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredHorizontalPodAutoscalerInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredHorizontalPodAutoscalerInformerWithOptions(client, namespace, resyncPeriod, indexers, HorizontalPodAutoscalerInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredHorizontalPodAutoscalerInformerWithOptions constructs a new informer for HorizontalPodAutoscaler type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredHorizontalPodAutoscalerInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options HorizontalPodAutoscalerInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "autoscaling", Version: "v1", Resource: "horizontalpodautoscalers"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("horizontalPodAutoscaler-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.Background(), options)
+				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(context.Background(), options)
+				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(ctx, options)
+				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(ctx, options)
+				return client.AutoscalingV1().HorizontalPodAutoscalers(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiautoscalingv1.HorizontalPodAutoscaler{},

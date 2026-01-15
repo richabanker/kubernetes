@@ -46,45 +46,70 @@ type podTemplateInformer struct {
 	namespace        string
 }
 
+// PodTemplateInformerOptions holds the options for creating a PodTemplate informer.
+type PodTemplateInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewPodTemplateInformer constructs a new informer for PodTemplate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewPodTemplateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPodTemplateInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewPodTemplateInformerWithOptions(client, namespace, resyncPeriod, indexers, PodTemplateInformerOptions{})
+}
+
+// NewPodTemplateInformerWithOptions constructs a new informer for PodTemplate type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewPodTemplateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options PodTemplateInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredPodTemplateInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredPodTemplateInformer constructs a new informer for PodTemplate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredPodTemplateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredPodTemplateInformerWithOptions(client, namespace, resyncPeriod, indexers, PodTemplateInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredPodTemplateInformerWithOptions constructs a new informer for PodTemplate type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredPodTemplateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options PodTemplateInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "podtemplates"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("podTemplate-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PodTemplates(namespace).List(context.Background(), options)
+				return client.CoreV1().PodTemplates(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PodTemplates(namespace).Watch(context.Background(), options)
+				return client.CoreV1().PodTemplates(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PodTemplates(namespace).List(ctx, options)
+				return client.CoreV1().PodTemplates(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PodTemplates(namespace).Watch(ctx, options)
+				return client.CoreV1().PodTemplates(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apicorev1.PodTemplate{},

@@ -45,45 +45,70 @@ type deviceClassInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// DeviceClassInformerOptions holds the options for creating a DeviceClass informer.
+type DeviceClassInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewDeviceClassInformer constructs a new informer for DeviceClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewDeviceClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredDeviceClassInformer(client, resyncPeriod, indexers, nil)
+	return NewDeviceClassInformerWithOptions(client, resyncPeriod, indexers, DeviceClassInformerOptions{})
+}
+
+// NewDeviceClassInformerWithOptions constructs a new informer for DeviceClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewDeviceClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options DeviceClassInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredDeviceClassInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredDeviceClassInformer constructs a new informer for DeviceClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredDeviceClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredDeviceClassInformerWithOptions(client, resyncPeriod, indexers, DeviceClassInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredDeviceClassInformerWithOptions constructs a new informer for DeviceClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredDeviceClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options DeviceClassInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "resource.k8s.io", Version: "v1beta1", Resource: "deviceclasss"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("deviceClass-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().DeviceClasses().List(context.Background(), options)
+				return client.ResourceV1beta1().DeviceClasses().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().DeviceClasses().Watch(context.Background(), options)
+				return client.ResourceV1beta1().DeviceClasses().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().DeviceClasses().List(ctx, options)
+				return client.ResourceV1beta1().DeviceClasses().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().DeviceClasses().Watch(ctx, options)
+				return client.ResourceV1beta1().DeviceClasses().Watch(ctx, opts)
 			},
 		}, client),
 		&apiresourcev1beta1.DeviceClass{},

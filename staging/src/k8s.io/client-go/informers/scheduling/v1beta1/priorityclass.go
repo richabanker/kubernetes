@@ -45,45 +45,70 @@ type priorityClassInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// PriorityClassInformerOptions holds the options for creating a PriorityClass informer.
+type PriorityClassInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewPriorityClassInformer constructs a new informer for PriorityClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewPriorityClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPriorityClassInformer(client, resyncPeriod, indexers, nil)
+	return NewPriorityClassInformerWithOptions(client, resyncPeriod, indexers, PriorityClassInformerOptions{})
+}
+
+// NewPriorityClassInformerWithOptions constructs a new informer for PriorityClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewPriorityClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options PriorityClassInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredPriorityClassInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredPriorityClassInformer constructs a new informer for PriorityClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredPriorityClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredPriorityClassInformerWithOptions(client, resyncPeriod, indexers, PriorityClassInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredPriorityClassInformerWithOptions constructs a new informer for PriorityClass type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredPriorityClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options PriorityClassInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "scheduling.k8s.io", Version: "v1beta1", Resource: "priorityclasss"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("priorityClass-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SchedulingV1beta1().PriorityClasses().List(context.Background(), options)
+				return client.SchedulingV1beta1().PriorityClasses().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SchedulingV1beta1().PriorityClasses().Watch(context.Background(), options)
+				return client.SchedulingV1beta1().PriorityClasses().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SchedulingV1beta1().PriorityClasses().List(ctx, options)
+				return client.SchedulingV1beta1().PriorityClasses().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.SchedulingV1beta1().PriorityClasses().Watch(ctx, options)
+				return client.SchedulingV1beta1().PriorityClasses().Watch(ctx, opts)
 			},
 		}, client),
 		&apischedulingv1beta1.PriorityClass{},

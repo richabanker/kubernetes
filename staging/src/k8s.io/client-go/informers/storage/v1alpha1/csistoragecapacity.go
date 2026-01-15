@@ -46,45 +46,70 @@ type cSIStorageCapacityInformer struct {
 	namespace        string
 }
 
+// CSIStorageCapacityInformerOptions holds the options for creating a CSIStorageCapacity informer.
+type CSIStorageCapacityInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewCSIStorageCapacityInformer constructs a new informer for CSIStorageCapacity type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewCSIStorageCapacityInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredCSIStorageCapacityInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewCSIStorageCapacityInformerWithOptions(client, namespace, resyncPeriod, indexers, CSIStorageCapacityInformerOptions{})
+}
+
+// NewCSIStorageCapacityInformerWithOptions constructs a new informer for CSIStorageCapacity type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewCSIStorageCapacityInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options CSIStorageCapacityInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredCSIStorageCapacityInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredCSIStorageCapacityInformer constructs a new informer for CSIStorageCapacity type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredCSIStorageCapacityInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredCSIStorageCapacityInformerWithOptions(client, namespace, resyncPeriod, indexers, CSIStorageCapacityInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredCSIStorageCapacityInformerWithOptions constructs a new informer for CSIStorageCapacity type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredCSIStorageCapacityInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options CSIStorageCapacityInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "storage.k8s.io", Version: "v1alpha1", Resource: "csistoragecapacitys"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("cSIStorageCapacity-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1alpha1().CSIStorageCapacities(namespace).List(context.Background(), options)
+				return client.StorageV1alpha1().CSIStorageCapacities(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1alpha1().CSIStorageCapacities(namespace).Watch(context.Background(), options)
+				return client.StorageV1alpha1().CSIStorageCapacities(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1alpha1().CSIStorageCapacities(namespace).List(ctx, options)
+				return client.StorageV1alpha1().CSIStorageCapacities(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.StorageV1alpha1().CSIStorageCapacities(namespace).Watch(ctx, options)
+				return client.StorageV1alpha1().CSIStorageCapacities(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apistoragev1alpha1.CSIStorageCapacity{},

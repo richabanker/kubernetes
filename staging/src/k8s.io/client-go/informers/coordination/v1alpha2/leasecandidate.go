@@ -46,45 +46,70 @@ type leaseCandidateInformer struct {
 	namespace        string
 }
 
+// LeaseCandidateInformerOptions holds the options for creating a LeaseCandidate informer.
+type LeaseCandidateInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewLeaseCandidateInformer constructs a new informer for LeaseCandidate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewLeaseCandidateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredLeaseCandidateInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewLeaseCandidateInformerWithOptions(client, namespace, resyncPeriod, indexers, LeaseCandidateInformerOptions{})
+}
+
+// NewLeaseCandidateInformerWithOptions constructs a new informer for LeaseCandidate type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewLeaseCandidateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options LeaseCandidateInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredLeaseCandidateInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredLeaseCandidateInformer constructs a new informer for LeaseCandidate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredLeaseCandidateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredLeaseCandidateInformerWithOptions(client, namespace, resyncPeriod, indexers, LeaseCandidateInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredLeaseCandidateInformerWithOptions constructs a new informer for LeaseCandidate type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredLeaseCandidateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options LeaseCandidateInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "coordination.k8s.io", Version: "v1alpha2", Resource: "leasecandidates"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("leaseCandidate-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoordinationV1alpha2().LeaseCandidates(namespace).List(context.Background(), options)
+				return client.CoordinationV1alpha2().LeaseCandidates(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoordinationV1alpha2().LeaseCandidates(namespace).Watch(context.Background(), options)
+				return client.CoordinationV1alpha2().LeaseCandidates(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoordinationV1alpha2().LeaseCandidates(namespace).List(ctx, options)
+				return client.CoordinationV1alpha2().LeaseCandidates(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoordinationV1alpha2().LeaseCandidates(namespace).Watch(ctx, options)
+				return client.CoordinationV1alpha2().LeaseCandidates(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apicoordinationv1alpha2.LeaseCandidate{},

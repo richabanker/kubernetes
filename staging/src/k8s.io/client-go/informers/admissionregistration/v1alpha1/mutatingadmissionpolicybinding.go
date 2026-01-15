@@ -45,45 +45,70 @@ type mutatingAdmissionPolicyBindingInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// MutatingAdmissionPolicyBindingInformerOptions holds the options for creating a MutatingAdmissionPolicyBinding informer.
+type MutatingAdmissionPolicyBindingInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewMutatingAdmissionPolicyBindingInformer constructs a new informer for MutatingAdmissionPolicyBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewMutatingAdmissionPolicyBindingInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredMutatingAdmissionPolicyBindingInformer(client, resyncPeriod, indexers, nil)
+	return NewMutatingAdmissionPolicyBindingInformerWithOptions(client, resyncPeriod, indexers, MutatingAdmissionPolicyBindingInformerOptions{})
+}
+
+// NewMutatingAdmissionPolicyBindingInformerWithOptions constructs a new informer for MutatingAdmissionPolicyBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewMutatingAdmissionPolicyBindingInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options MutatingAdmissionPolicyBindingInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredMutatingAdmissionPolicyBindingInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredMutatingAdmissionPolicyBindingInformer constructs a new informer for MutatingAdmissionPolicyBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredMutatingAdmissionPolicyBindingInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredMutatingAdmissionPolicyBindingInformerWithOptions(client, resyncPeriod, indexers, MutatingAdmissionPolicyBindingInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredMutatingAdmissionPolicyBindingInformerWithOptions constructs a new informer for MutatingAdmissionPolicyBinding type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredMutatingAdmissionPolicyBindingInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options MutatingAdmissionPolicyBindingInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "admissionregistration.k8s.io", Version: "v1alpha1", Resource: "mutatingadmissionpolicybindings"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("mutatingAdmissionPolicyBinding-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().List(context.Background(), options)
+				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().Watch(context.Background(), options)
+				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().List(ctx, options)
+				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().Watch(ctx, options)
+				return client.AdmissionregistrationV1alpha1().MutatingAdmissionPolicyBindings().Watch(ctx, opts)
 			},
 		}, client),
 		&apiadmissionregistrationv1alpha1.MutatingAdmissionPolicyBinding{},

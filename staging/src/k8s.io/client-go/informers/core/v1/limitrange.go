@@ -46,45 +46,70 @@ type limitRangeInformer struct {
 	namespace        string
 }
 
+// LimitRangeInformerOptions holds the options for creating a LimitRange informer.
+type LimitRangeInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewLimitRangeInformer constructs a new informer for LimitRange type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewLimitRangeInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredLimitRangeInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewLimitRangeInformerWithOptions(client, namespace, resyncPeriod, indexers, LimitRangeInformerOptions{})
+}
+
+// NewLimitRangeInformerWithOptions constructs a new informer for LimitRange type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewLimitRangeInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options LimitRangeInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredLimitRangeInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredLimitRangeInformer constructs a new informer for LimitRange type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredLimitRangeInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredLimitRangeInformerWithOptions(client, namespace, resyncPeriod, indexers, LimitRangeInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredLimitRangeInformerWithOptions constructs a new informer for LimitRange type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredLimitRangeInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options LimitRangeInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "limitranges"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("limitRange-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().LimitRanges(namespace).List(context.Background(), options)
+				return client.CoreV1().LimitRanges(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().LimitRanges(namespace).Watch(context.Background(), options)
+				return client.CoreV1().LimitRanges(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().LimitRanges(namespace).List(ctx, options)
+				return client.CoreV1().LimitRanges(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().LimitRanges(namespace).Watch(ctx, options)
+				return client.CoreV1().LimitRanges(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apicorev1.LimitRange{},

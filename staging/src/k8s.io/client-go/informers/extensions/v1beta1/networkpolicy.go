@@ -46,45 +46,70 @@ type networkPolicyInformer struct {
 	namespace        string
 }
 
+// NetworkPolicyInformerOptions holds the options for creating a NetworkPolicy informer.
+type NetworkPolicyInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewNetworkPolicyInformer constructs a new informer for NetworkPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewNetworkPolicyInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredNetworkPolicyInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewNetworkPolicyInformerWithOptions(client, namespace, resyncPeriod, indexers, NetworkPolicyInformerOptions{})
+}
+
+// NewNetworkPolicyInformerWithOptions constructs a new informer for NetworkPolicy type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewNetworkPolicyInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options NetworkPolicyInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredNetworkPolicyInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredNetworkPolicyInformer constructs a new informer for NetworkPolicy type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredNetworkPolicyInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredNetworkPolicyInformerWithOptions(client, namespace, resyncPeriod, indexers, NetworkPolicyInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredNetworkPolicyInformerWithOptions constructs a new informer for NetworkPolicy type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredNetworkPolicyInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options NetworkPolicyInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "networkpolicys"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("networkPolicy-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().NetworkPolicies(namespace).List(context.Background(), options)
+				return client.ExtensionsV1beta1().NetworkPolicies(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().NetworkPolicies(namespace).Watch(context.Background(), options)
+				return client.ExtensionsV1beta1().NetworkPolicies(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().NetworkPolicies(namespace).List(ctx, options)
+				return client.ExtensionsV1beta1().NetworkPolicies(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ExtensionsV1beta1().NetworkPolicies(namespace).Watch(ctx, options)
+				return client.ExtensionsV1beta1().NetworkPolicies(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apiextensionsv1beta1.NetworkPolicy{},

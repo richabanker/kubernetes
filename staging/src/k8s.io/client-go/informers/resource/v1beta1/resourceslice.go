@@ -45,45 +45,70 @@ type resourceSliceInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// ResourceSliceInformerOptions holds the options for creating a ResourceSlice informer.
+type ResourceSliceInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewResourceSliceInformer constructs a new informer for ResourceSlice type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewResourceSliceInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredResourceSliceInformer(client, resyncPeriod, indexers, nil)
+	return NewResourceSliceInformerWithOptions(client, resyncPeriod, indexers, ResourceSliceInformerOptions{})
+}
+
+// NewResourceSliceInformerWithOptions constructs a new informer for ResourceSlice type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewResourceSliceInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ResourceSliceInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredResourceSliceInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredResourceSliceInformer constructs a new informer for ResourceSlice type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredResourceSliceInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredResourceSliceInformerWithOptions(client, resyncPeriod, indexers, ResourceSliceInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredResourceSliceInformerWithOptions constructs a new informer for ResourceSlice type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredResourceSliceInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ResourceSliceInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "resource.k8s.io", Version: "v1beta1", Resource: "resourceslices"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("resourceSlice-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().ResourceSlices().List(context.Background(), options)
+				return client.ResourceV1beta1().ResourceSlices().List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().ResourceSlices().Watch(context.Background(), options)
+				return client.ResourceV1beta1().ResourceSlices().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().ResourceSlices().List(ctx, options)
+				return client.ResourceV1beta1().ResourceSlices().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ResourceV1beta1().ResourceSlices().Watch(ctx, options)
+				return client.ResourceV1beta1().ResourceSlices().Watch(ctx, opts)
 			},
 		}, client),
 		&apiresourcev1beta1.ResourceSlice{},

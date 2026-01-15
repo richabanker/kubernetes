@@ -45,45 +45,70 @@ type persistentVolumeInformer struct {
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 }
 
+// PersistentVolumeInformerOptions holds the options for creating a PersistentVolume informer.
+type PersistentVolumeInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewPersistentVolumeInformer constructs a new informer for PersistentVolume type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewPersistentVolumeInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPersistentVolumeInformer(client, resyncPeriod, indexers, nil)
+	return NewPersistentVolumeInformerWithOptions(client, resyncPeriod, indexers, PersistentVolumeInformerOptions{})
+}
+
+// NewPersistentVolumeInformerWithOptions constructs a new informer for PersistentVolume type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewPersistentVolumeInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options PersistentVolumeInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredPersistentVolumeInformerWithOptions(client, resyncPeriod, indexers, options)
 }
 
 // NewFilteredPersistentVolumeInformer constructs a new informer for PersistentVolume type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredPersistentVolumeInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredPersistentVolumeInformerWithOptions(client, resyncPeriod, indexers, PersistentVolumeInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredPersistentVolumeInformerWithOptions constructs a new informer for PersistentVolume type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredPersistentVolumeInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options PersistentVolumeInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumes"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("persistentVolume-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PersistentVolumes().List(context.Background(), options)
+				return client.CoreV1().PersistentVolumes().List(context.Background(), opts)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PersistentVolumes().Watch(context.Background(), options)
+				return client.CoreV1().PersistentVolumes().Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PersistentVolumes().List(ctx, options)
+				return client.CoreV1().PersistentVolumes().List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.CoreV1().PersistentVolumes().Watch(ctx, options)
+				return client.CoreV1().PersistentVolumes().Watch(ctx, opts)
 			},
 		}, client),
 		&apicorev1.PersistentVolume{},

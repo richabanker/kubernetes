@@ -46,45 +46,70 @@ type podDisruptionBudgetInformer struct {
 	namespace        string
 }
 
+// PodDisruptionBudgetInformerOptions holds the options for creating a PodDisruptionBudget informer.
+type PodDisruptionBudgetInformerOptions struct {
+	// Name is used to uniquely identify this informer for metrics.
+	// If not set, metrics will not be published for this informer.
+	Name string
+
+	// TweakListOptions is an optional function to modify the list options.
+	TweakListOptions internalinterfaces.TweakListOptionsFunc
+}
+
 // NewPodDisruptionBudgetInformer constructs a new informer for PodDisruptionBudget type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewPodDisruptionBudgetInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredPodDisruptionBudgetInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewPodDisruptionBudgetInformerWithOptions(client, namespace, resyncPeriod, indexers, PodDisruptionBudgetInformerOptions{})
+}
+
+// NewPodDisruptionBudgetInformerWithOptions constructs a new informer for PodDisruptionBudget type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewPodDisruptionBudgetInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options PodDisruptionBudgetInformerOptions) cache.SharedIndexInformer {
+	return NewFilteredPodDisruptionBudgetInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
 }
 
 // NewFilteredPodDisruptionBudgetInformer constructs a new informer for PodDisruptionBudget type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredPodDisruptionBudgetInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+	return NewFilteredPodDisruptionBudgetInformerWithOptions(client, namespace, resyncPeriod, indexers, PodDisruptionBudgetInformerOptions{TweakListOptions: tweakListOptions})
+}
+
+// NewFilteredPodDisruptionBudgetInformerWithOptions constructs a new informer for PodDisruptionBudget type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewFilteredPodDisruptionBudgetInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options PodDisruptionBudgetInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "policy", Version: "v1beta1", Resource: "poddisruptionbudgets"}
 	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier("podDisruptionBudget-informer", gvr)
+	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).List(context.Background(), options)
+				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).Watch(context.Background(), options)
+				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).List(ctx, options)
+				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).Watch(ctx, options)
+				return client.PolicyV1beta1().PodDisruptionBudgets(namespace).Watch(ctx, opts)
 			},
 		}, client),
 		&apipolicyv1beta1.PodDisruptionBudget{},
