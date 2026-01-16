@@ -50,6 +50,14 @@ type RealFIFOOptions struct {
 	// atomically for Replace and Resync operations.
 	// If AtomicEvents is true, KnownObjects must be nil.
 	AtomicEvents bool
+
+	// Identifier is used to identify this FIFO for metrics and logging purposes.
+	// Optional. If zero value (Identifier{}), metrics will not be published and trace logs will not
+	// include Name or Resource fields.
+	Identifier Identifier
+
+	// MetricsProvider is used to create metrics for the FIFO.
+	MetricsProvider FIFOMetricsProvider
 }
 
 const (
@@ -94,6 +102,12 @@ type RealFIFO struct {
 
 	// batchSize determines the maximum number of objects we can combine into a batch.
 	batchSize int
+
+	// identifier is used to identify this FIFO for metrics and logging purposes.
+	identifier Identifier
+
+	// metrics holds all metrics for this FIFO.
+	metrics *fifoMetrics
 
 	// emitAtomicEvents defines whether events like Replace and Resync should be emitted
 	// atomically rather than as a series of events. This means that any call to the FIFO
@@ -199,6 +213,7 @@ func (f *RealFIFO) addToItems_locked(deltaActionType DeltaType, skipTransform bo
 	})
 	f.cond.Broadcast()
 
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 	return nil
 }
 
@@ -228,6 +243,7 @@ func (f *RealFIFO) addReplaceToItemsLocked(objs []interface{}, resourceVersion s
 	})
 	f.cond.Broadcast()
 
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 	return nil
 }
 
@@ -238,6 +254,7 @@ func (f *RealFIFO) addResyncToItemsLocked() error {
 	})
 	f.cond.Broadcast()
 
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 	return nil
 }
 
@@ -248,9 +265,7 @@ func (f *RealFIFO) Add(obj interface{}) error {
 	defer f.lock.Unlock()
 
 	f.populated = true
-	retErr := f.addToItems_locked(Added, false, obj)
-
-	return retErr
+	return f.addToItems_locked(Added, false, obj)
 }
 
 // Update is the same as Add in this implementation.
@@ -259,9 +274,7 @@ func (f *RealFIFO) Update(obj interface{}) error {
 	defer f.lock.Unlock()
 
 	f.populated = true
-	retErr := f.addToItems_locked(Updated, false, obj)
-
-	return retErr
+	return f.addToItems_locked(Updated, false, obj)
 }
 
 // Delete removes an item. It doesn't add it to the queue, because
@@ -272,9 +285,7 @@ func (f *RealFIFO) Delete(obj interface{}) error {
 	defer f.lock.Unlock()
 
 	f.populated = true
-	retErr := f.addToItems_locked(Deleted, false, obj)
-
-	return retErr
+	return f.addToItems_locked(Deleted, false, obj)
 }
 
 // IsClosed checks if the queue is closed
@@ -320,12 +331,22 @@ func (f *RealFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 	// https://github.com/kubernetes/kubernetes/issues/103789
 	if len(f.items) > 10 {
 		id, _ := f.keyOf(item)
-		trace := utiltrace.New("RealFIFO Pop Process",
-			utiltrace.Field{Key: "ID", Value: id},
-			utiltrace.Field{Key: "Depth", Value: len(f.items)},
-			utiltrace.Field{Key: "Reason", Value: "slow event handlers blocking the queue"})
+		fields := []utiltrace.Field{
+			{Key: "ID", Value: id},
+			{Key: "Depth", Value: len(f.items)},
+			{Key: "Reason", Value: "slow event handlers blocking the queue"},
+		}
+		if name := f.identifier.Name(); len(name) > 0 {
+			fields = append(fields, utiltrace.Field{Key: "Name", Value: name})
+		}
+		if gvr := f.identifier.GroupVersionResource(); !gvr.Empty() {
+			fields = append(fields, utiltrace.Field{Key: "Resource", Value: gvr})
+		}
+		trace := utiltrace.New("RealFIFO Pop Process", fields...)
 		defer trace.LogIfLong(100 * time.Millisecond)
 	}
+
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 
 	// we wrap in Deltas here to be compatible with preview Pop functions and those interpreting the return value.
 	err := process(Deltas{item}, isInInitialList)
@@ -409,13 +430,23 @@ func (f *RealFIFO) PopBatch(processBatch ProcessBatchFunc, processSingle PopProc
 	// https://github.com/kubernetes/kubernetes/issues/103789
 	if len(f.items) > 10 {
 		id, _ := f.keyOf(deltas[0])
-		trace := utiltrace.New("RealFIFO PopBatch Process",
-			utiltrace.Field{Key: "ID", Value: id},
-			utiltrace.Field{Key: "Depth", Value: len(f.items)},
-			utiltrace.Field{Key: "Reason", Value: "slow event handlers blocking the queue"},
-			utiltrace.Field{Key: "BatchSize", Value: len(deltas)})
+		fields := []utiltrace.Field{
+			{Key: "ID", Value: id},
+			{Key: "Depth", Value: len(f.items)},
+			{Key: "Reason", Value: "slow event handlers blocking the queue"},
+			{Key: "BatchSize", Value: len(deltas)},
+		}
+		if name := f.identifier.Name(); len(name) > 0 {
+			fields = append(fields, utiltrace.Field{Key: "Name", Value: name})
+		}
+		if gvr := f.identifier.GroupVersionResource(); !gvr.Empty() {
+			fields = append(fields, utiltrace.Field{Key: "Resource", Value: gvr})
+		}
+		trace := utiltrace.New("RealFIFO PopBatch Process", fields...)
 		defer trace.LogIfLong(min(100*time.Millisecond*time.Duration(len(deltas)), time.Second))
 	}
+
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 
 	if len(deltas) == 1 {
 		return processSingle(Deltas{deltas[0]}, isInInitialList)
@@ -652,6 +683,8 @@ func NewRealFIFOWithOptions(opts RealFIFOOptions) *RealFIFO {
 		knownObjects:     opts.KnownObjects,
 		transformer:      opts.Transformer,
 		batchSize:        defaultBatchSize,
+		identifier:       opts.Identifier,
+		metrics:          newFIFOMetrics(opts.Identifier, opts.MetricsProvider),
 		emitAtomicEvents: opts.AtomicEvents,
 	}
 
