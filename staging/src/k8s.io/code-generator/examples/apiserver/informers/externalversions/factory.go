@@ -39,13 +39,14 @@ import (
 type SharedInformerOption func(*sharedInformerFactory) *sharedInformerFactory
 
 type sharedInformerFactory struct {
-	client           versioned.Interface
-	namespace        string
-	tweakListOptions internalinterfaces.TweakListOptionsFunc
-	lock             sync.Mutex
-	defaultResync    time.Duration
-	customResync     map[reflect.Type]time.Duration
-	transform        cache.TransformFunc
+	client             versioned.Interface
+	namespace          string
+	tweakListOptions   internalinterfaces.TweakListOptionsFunc
+	lock               sync.Mutex
+	defaultResync      time.Duration
+	customResync       map[reflect.Type]time.Duration
+	transform          cache.TransformFunc
+	informerNamePrefix string
 
 	informers map[reflect.Type]cache.SharedIndexInformer
 	// startedInformers is used for tracking which informers have been started.
@@ -90,6 +91,20 @@ func WithTransform(transform cache.TransformFunc) SharedInformerOption {
 		factory.transform = transform
 		return factory
 	}
+}
+
+// WithInformerNamePrefix sets a prefix for informer names used in metrics.
+// For example, WithInformerNamePrefix("kube-controller-manager") will create
+// informer names like "kube-controller-manager-pod-informer".
+func WithInformerNamePrefix(prefix string) SharedInformerOption {
+	return func(factory *sharedInformerFactory) *sharedInformerFactory {
+		factory.informerNamePrefix = prefix
+		return factory
+	}
+}
+
+func (f *sharedInformerFactory) InformerNamePrefix() string {
+	return f.informerNamePrefix
 }
 
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory for all namespaces.

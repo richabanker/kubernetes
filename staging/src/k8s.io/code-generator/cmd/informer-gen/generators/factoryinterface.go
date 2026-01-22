@@ -83,6 +83,7 @@ type NewInformerFunc func({{.clientSetPackage|raw}}, {{.timeDuration|raw}}) cach
 type SharedInformerFactory interface {
 	Start(stopCh <-chan struct{})
 	InformerFor(obj {{.runtimeObject|raw}}, newFunc NewInformerFunc) {{.cacheSharedIndexInformer|raw}}
+	InformerNamePrefix() string
 }
 
 // TweakListOptionsFunc is a function that transforms a {{.v1ListOptions|raw}}.

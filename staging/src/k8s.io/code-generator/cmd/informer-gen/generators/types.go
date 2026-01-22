@@ -21,13 +21,17 @@ import "k8s.io/gengo/v2/types"
 var (
 	apiScheme                                    = types.Name{Package: "k8s.io/kubernetes/pkg/api/legacyscheme", Name: "Scheme"}
 	cacheGenericLister                           = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "GenericLister"}
+	cacheIdentifier                              = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "Identifier"}
 	cacheIndexers                                = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "Indexers"}
 	cacheListWatch                               = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "ListWatch"}
 	cacheMetaNamespaceIndexFunc                  = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "MetaNamespaceIndexFunc"}
 	cacheNamespaceIndex                          = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NamespaceIndex"}
 	cacheNewGenericLister                        = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewGenericLister"}
+	cacheNewIdentifier                           = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewIdentifier"}
 	cacheNewSharedIndexInformer                  = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewSharedIndexInformer"}
+	cacheNewSharedIndexInformerWithOptions       = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "NewSharedIndexInformerWithOptions"}
 	cacheSharedIndexInformer                     = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "SharedIndexInformer"}
+	cacheSharedIndexInformerOptions              = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "SharedIndexInformerOptions"}
 	cacheTransformFunc                           = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "TransformFunc"}
 	cacheToListWatcherWithWatchListSemanticsFunc = types.Name{Package: "k8s.io/client-go/tools/cache", Name: "ToListWatcherWithWatchListSemantics"}
 	contextBackgroundFunc                        = types.Name{Package: "context", Name: "Background"}
