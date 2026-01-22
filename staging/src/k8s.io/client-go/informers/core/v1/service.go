@@ -48,9 +48,18 @@ type serviceInformer struct {
 
 // ServiceInformerOptions holds the options for creating a Service informer.
 type ServiceInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-service-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -60,30 +69,26 @@ type ServiceInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewServiceInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewServiceInformerWithOptions(client, namespace, resyncPeriod, indexers, ServiceInformerOptions{})
-}
-
-// NewServiceInformerWithOptions constructs a new informer for Service type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewServiceInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ServiceInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredServiceInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
+	return NewServiceInformerWithOptions(client, namespace, ServiceInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredServiceInformer constructs a new informer for Service type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredServiceInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredServiceInformerWithOptions(client, namespace, resyncPeriod, indexers, ServiceInformerOptions{TweakListOptions: tweakListOptions})
+	return NewServiceInformerWithOptions(client, namespace, ServiceInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredServiceInformerWithOptions constructs a new informer for Service type with additional options.
+// NewServiceInformerWithOptions constructs a new informer for Service type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredServiceInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ServiceInformerOptions) cache.SharedIndexInformer {
+func NewServiceInformerWithOptions(client kubernetes.Interface, namespace string, options ServiceInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-service-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -114,15 +119,15 @@ func NewFilteredServiceInformerWithOptions(client kubernetes.Interface, namespac
 		}, client),
 		&apicorev1.Service{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *serviceInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredServiceInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewServiceInformerWithOptions(client, f.namespace, ServiceInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *serviceInformer) Informer() cache.SharedIndexInformer {

@@ -47,9 +47,18 @@ type aPIServiceInformer struct {
 
 // APIServiceInformerOptions holds the options for creating a APIService informer.
 type APIServiceInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-aPIService-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -59,30 +68,26 @@ type APIServiceInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewAPIServiceInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewAPIServiceInformerWithOptions(client, resyncPeriod, indexers, APIServiceInformerOptions{})
-}
-
-// NewAPIServiceInformerWithOptions constructs a new informer for APIService type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewAPIServiceInformerWithOptions(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options APIServiceInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredAPIServiceInformerWithOptions(client, resyncPeriod, indexers, options)
+	return NewAPIServiceInformerWithOptions(client, APIServiceInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredAPIServiceInformer constructs a new informer for APIService type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredAPIServiceInformer(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredAPIServiceInformerWithOptions(client, resyncPeriod, indexers, APIServiceInformerOptions{TweakListOptions: tweakListOptions})
+	return NewAPIServiceInformerWithOptions(client, APIServiceInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredAPIServiceInformerWithOptions constructs a new informer for APIService type with additional options.
+// NewAPIServiceInformerWithOptions constructs a new informer for APIService type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAPIServiceInformerWithOptions(client clientset.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options APIServiceInformerOptions) cache.SharedIndexInformer {
+func NewAPIServiceInformerWithOptions(client clientset.Interface, options APIServiceInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "apiregistration.k8s.io", Version: "v1", Resource: "apiservices"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-aPIService-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -113,15 +118,15 @@ func NewFilteredAPIServiceInformerWithOptions(client clientset.Interface, resync
 		}, client),
 		&apisapiregistrationv1.APIService{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *aPIServiceInformer) defaultInformer(client clientset.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAPIServiceInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewAPIServiceInformerWithOptions(client, APIServiceInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *aPIServiceInformer) Informer() cache.SharedIndexInformer {

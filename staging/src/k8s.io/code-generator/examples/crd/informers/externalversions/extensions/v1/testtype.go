@@ -48,9 +48,18 @@ type testTypeInformer struct {
 
 // TestTypeInformerOptions holds the options for creating a TestType informer.
 type TestTypeInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-testType-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -60,30 +69,26 @@ type TestTypeInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewTestTypeInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewTestTypeInformerWithOptions(client, namespace, resyncPeriod, indexers, TestTypeInformerOptions{})
-}
-
-// NewTestTypeInformerWithOptions constructs a new informer for TestType type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewTestTypeInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options TestTypeInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredTestTypeInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
+	return NewTestTypeInformerWithOptions(client, namespace, TestTypeInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredTestTypeInformer constructs a new informer for TestType type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredTestTypeInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredTestTypeInformerWithOptions(client, namespace, resyncPeriod, indexers, TestTypeInformerOptions{TweakListOptions: tweakListOptions})
+	return NewTestTypeInformerWithOptions(client, namespace, TestTypeInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredTestTypeInformerWithOptions constructs a new informer for TestType type with additional options.
+// NewTestTypeInformerWithOptions constructs a new informer for TestType type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredTestTypeInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options TestTypeInformerOptions) cache.SharedIndexInformer {
+func NewTestTypeInformerWithOptions(client versioned.Interface, namespace string, options TestTypeInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "extensions.test.crd.code-generator.k8s.io", Version: "v1", Resource: "testtypes"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-testType-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -114,15 +119,15 @@ func NewFilteredTestTypeInformerWithOptions(client versioned.Interface, namespac
 		}, client),
 		&apisextensionsv1.TestType{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *testTypeInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredTestTypeInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTestTypeInformerWithOptions(client, f.namespace, TestTypeInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *testTypeInformer) Informer() cache.SharedIndexInformer {

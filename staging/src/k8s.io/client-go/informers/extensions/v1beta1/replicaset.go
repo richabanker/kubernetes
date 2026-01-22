@@ -48,9 +48,18 @@ type replicaSetInformer struct {
 
 // ReplicaSetInformerOptions holds the options for creating a ReplicaSet informer.
 type ReplicaSetInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-replicaSet-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -60,30 +69,26 @@ type ReplicaSetInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewReplicaSetInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewReplicaSetInformerWithOptions(client, namespace, resyncPeriod, indexers, ReplicaSetInformerOptions{})
-}
-
-// NewReplicaSetInformerWithOptions constructs a new informer for ReplicaSet type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewReplicaSetInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ReplicaSetInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredReplicaSetInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
+	return NewReplicaSetInformerWithOptions(client, namespace, ReplicaSetInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredReplicaSetInformer constructs a new informer for ReplicaSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredReplicaSetInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredReplicaSetInformerWithOptions(client, namespace, resyncPeriod, indexers, ReplicaSetInformerOptions{TweakListOptions: tweakListOptions})
+	return NewReplicaSetInformerWithOptions(client, namespace, ReplicaSetInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredReplicaSetInformerWithOptions constructs a new informer for ReplicaSet type with additional options.
+// NewReplicaSetInformerWithOptions constructs a new informer for ReplicaSet type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredReplicaSetInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ReplicaSetInformerOptions) cache.SharedIndexInformer {
+func NewReplicaSetInformerWithOptions(client kubernetes.Interface, namespace string, options ReplicaSetInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "replicasets"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-replicaSet-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -114,15 +119,15 @@ func NewFilteredReplicaSetInformerWithOptions(client kubernetes.Interface, names
 		}, client),
 		&apiextensionsv1beta1.ReplicaSet{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *replicaSetInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredReplicaSetInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewReplicaSetInformerWithOptions(client, f.namespace, ReplicaSetInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *replicaSetInformer) Informer() cache.SharedIndexInformer {

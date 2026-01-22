@@ -47,9 +47,18 @@ type storageVersionInformer struct {
 
 // StorageVersionInformerOptions holds the options for creating a StorageVersion informer.
 type StorageVersionInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-storageVersion-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -59,30 +68,26 @@ type StorageVersionInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewStorageVersionInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewStorageVersionInformerWithOptions(client, resyncPeriod, indexers, StorageVersionInformerOptions{})
-}
-
-// NewStorageVersionInformerWithOptions constructs a new informer for StorageVersion type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewStorageVersionInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageVersionInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredStorageVersionInformerWithOptions(client, resyncPeriod, indexers, options)
+	return NewStorageVersionInformerWithOptions(client, StorageVersionInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredStorageVersionInformer constructs a new informer for StorageVersion type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredStorageVersionInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredStorageVersionInformerWithOptions(client, resyncPeriod, indexers, StorageVersionInformerOptions{TweakListOptions: tweakListOptions})
+	return NewStorageVersionInformerWithOptions(client, StorageVersionInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredStorageVersionInformerWithOptions constructs a new informer for StorageVersion type with additional options.
+// NewStorageVersionInformerWithOptions constructs a new informer for StorageVersion type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredStorageVersionInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options StorageVersionInformerOptions) cache.SharedIndexInformer {
+func NewStorageVersionInformerWithOptions(client kubernetes.Interface, options StorageVersionInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "internal.apiserver.k8s.io", Version: "v1alpha1", Resource: "storageversions"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-storageVersion-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -113,15 +118,15 @@ func NewFilteredStorageVersionInformerWithOptions(client kubernetes.Interface, r
 		}, client),
 		&apiapiserverinternalv1alpha1.StorageVersion{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *storageVersionInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredStorageVersionInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewStorageVersionInformerWithOptions(client, StorageVersionInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *storageVersionInformer) Informer() cache.SharedIndexInformer {

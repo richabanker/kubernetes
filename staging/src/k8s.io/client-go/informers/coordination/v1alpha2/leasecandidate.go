@@ -48,9 +48,18 @@ type leaseCandidateInformer struct {
 
 // LeaseCandidateInformerOptions holds the options for creating a LeaseCandidate informer.
 type LeaseCandidateInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-leaseCandidate-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -60,30 +69,26 @@ type LeaseCandidateInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewLeaseCandidateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewLeaseCandidateInformerWithOptions(client, namespace, resyncPeriod, indexers, LeaseCandidateInformerOptions{})
-}
-
-// NewLeaseCandidateInformerWithOptions constructs a new informer for LeaseCandidate type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewLeaseCandidateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options LeaseCandidateInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredLeaseCandidateInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
+	return NewLeaseCandidateInformerWithOptions(client, namespace, LeaseCandidateInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredLeaseCandidateInformer constructs a new informer for LeaseCandidate type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredLeaseCandidateInformer(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredLeaseCandidateInformerWithOptions(client, namespace, resyncPeriod, indexers, LeaseCandidateInformerOptions{TweakListOptions: tweakListOptions})
+	return NewLeaseCandidateInformerWithOptions(client, namespace, LeaseCandidateInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredLeaseCandidateInformerWithOptions constructs a new informer for LeaseCandidate type with additional options.
+// NewLeaseCandidateInformerWithOptions constructs a new informer for LeaseCandidate type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredLeaseCandidateInformerWithOptions(client kubernetes.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options LeaseCandidateInformerOptions) cache.SharedIndexInformer {
+func NewLeaseCandidateInformerWithOptions(client kubernetes.Interface, namespace string, options LeaseCandidateInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "coordination.k8s.io", Version: "v1alpha2", Resource: "leasecandidates"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-leaseCandidate-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -114,15 +119,15 @@ func NewFilteredLeaseCandidateInformerWithOptions(client kubernetes.Interface, n
 		}, client),
 		&apicoordinationv1alpha2.LeaseCandidate{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *leaseCandidateInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredLeaseCandidateInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewLeaseCandidateInformerWithOptions(client, f.namespace, LeaseCandidateInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *leaseCandidateInformer) Informer() cache.SharedIndexInformer {

@@ -47,9 +47,18 @@ type validatingWebhookConfigurationInformer struct {
 
 // ValidatingWebhookConfigurationInformerOptions holds the options for creating a ValidatingWebhookConfiguration informer.
 type ValidatingWebhookConfigurationInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-validatingWebhookConfiguration-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -59,30 +68,26 @@ type ValidatingWebhookConfigurationInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewValidatingWebhookConfigurationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewValidatingWebhookConfigurationInformerWithOptions(client, resyncPeriod, indexers, ValidatingWebhookConfigurationInformerOptions{})
-}
-
-// NewValidatingWebhookConfigurationInformerWithOptions constructs a new informer for ValidatingWebhookConfiguration type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewValidatingWebhookConfigurationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ValidatingWebhookConfigurationInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredValidatingWebhookConfigurationInformerWithOptions(client, resyncPeriod, indexers, options)
+	return NewValidatingWebhookConfigurationInformerWithOptions(client, ValidatingWebhookConfigurationInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredValidatingWebhookConfigurationInformer constructs a new informer for ValidatingWebhookConfiguration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredValidatingWebhookConfigurationInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredValidatingWebhookConfigurationInformerWithOptions(client, resyncPeriod, indexers, ValidatingWebhookConfigurationInformerOptions{TweakListOptions: tweakListOptions})
+	return NewValidatingWebhookConfigurationInformerWithOptions(client, ValidatingWebhookConfigurationInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredValidatingWebhookConfigurationInformerWithOptions constructs a new informer for ValidatingWebhookConfiguration type with additional options.
+// NewValidatingWebhookConfigurationInformerWithOptions constructs a new informer for ValidatingWebhookConfiguration type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredValidatingWebhookConfigurationInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options ValidatingWebhookConfigurationInformerOptions) cache.SharedIndexInformer {
+func NewValidatingWebhookConfigurationInformerWithOptions(client kubernetes.Interface, options ValidatingWebhookConfigurationInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "admissionregistration.k8s.io", Version: "v1beta1", Resource: "validatingwebhookconfigurations"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-validatingWebhookConfiguration-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -113,15 +118,15 @@ func NewFilteredValidatingWebhookConfigurationInformerWithOptions(client kuberne
 		}, client),
 		&apiadmissionregistrationv1beta1.ValidatingWebhookConfiguration{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *validatingWebhookConfigurationInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredValidatingWebhookConfigurationInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewValidatingWebhookConfigurationInformerWithOptions(client, ValidatingWebhookConfigurationInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *validatingWebhookConfigurationInformer) Informer() cache.SharedIndexInformer {

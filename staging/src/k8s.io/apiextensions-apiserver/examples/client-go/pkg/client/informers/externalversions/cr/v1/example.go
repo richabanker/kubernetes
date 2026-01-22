@@ -48,9 +48,18 @@ type exampleInformer struct {
 
 // ExampleInformerOptions holds the options for creating a Example informer.
 type ExampleInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-example-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -60,30 +69,26 @@ type ExampleInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewExampleInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewExampleInformerWithOptions(client, namespace, resyncPeriod, indexers, ExampleInformerOptions{})
-}
-
-// NewExampleInformerWithOptions constructs a new informer for Example type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewExampleInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ExampleInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredExampleInformerWithOptions(client, namespace, resyncPeriod, indexers, options)
+	return NewExampleInformerWithOptions(client, namespace, ExampleInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredExampleInformer constructs a new informer for Example type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredExampleInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredExampleInformerWithOptions(client, namespace, resyncPeriod, indexers, ExampleInformerOptions{TweakListOptions: tweakListOptions})
+	return NewExampleInformerWithOptions(client, namespace, ExampleInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredExampleInformerWithOptions constructs a new informer for Example type with additional options.
+// NewExampleInformerWithOptions constructs a new informer for Example type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredExampleInformerWithOptions(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, options ExampleInformerOptions) cache.SharedIndexInformer {
+func NewExampleInformerWithOptions(client versioned.Interface, namespace string, options ExampleInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "cr.example.apiextensions.k8s.io", Version: "v1", Resource: "examples"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-example-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -114,15 +119,15 @@ func NewFilteredExampleInformerWithOptions(client versioned.Interface, namespace
 		}, client),
 		&apiscrv1.Example{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *exampleInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredExampleInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewExampleInformerWithOptions(client, f.namespace, ExampleInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *exampleInformer) Informer() cache.SharedIndexInformer {

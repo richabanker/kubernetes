@@ -47,9 +47,18 @@ type volumeAttributesClassInformer struct {
 
 // VolumeAttributesClassInformerOptions holds the options for creating a VolumeAttributesClass informer.
 type VolumeAttributesClassInformerOptions struct {
-	// Name is used to uniquely identify this informer for metrics.
+	// ResyncPeriod is the resync period for this informer.
+	// If not set, defaults to 0 (no resync).
+	ResyncPeriod time.Duration
+
+	// Indexers are the indexers for this informer.
+	Indexers cache.Indexers
+
+	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
+	// The full informer name will be InformerNamePrefix + "-volumeAttributesClass-informer",
+	// which is used together with the GroupVersionResource for metrics.
 	// If not set, metrics will not be published for this informer.
-	Name string
+	InformerNamePrefix string
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -59,30 +68,26 @@ type VolumeAttributesClassInformerOptions struct {
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewVolumeAttributesClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewVolumeAttributesClassInformerWithOptions(client, resyncPeriod, indexers, VolumeAttributesClassInformerOptions{})
-}
-
-// NewVolumeAttributesClassInformerWithOptions constructs a new informer for VolumeAttributesClass type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewVolumeAttributesClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options VolumeAttributesClassInformerOptions) cache.SharedIndexInformer {
-	return NewFilteredVolumeAttributesClassInformerWithOptions(client, resyncPeriod, indexers, options)
+	return NewVolumeAttributesClassInformerWithOptions(client, VolumeAttributesClassInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
 }
 
 // NewFilteredVolumeAttributesClassInformer constructs a new informer for VolumeAttributesClass type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredVolumeAttributesClassInformer(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewFilteredVolumeAttributesClassInformerWithOptions(client, resyncPeriod, indexers, VolumeAttributesClassInformerOptions{TweakListOptions: tweakListOptions})
+	return NewVolumeAttributesClassInformerWithOptions(client, VolumeAttributesClassInformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
-// NewFilteredVolumeAttributesClassInformerWithOptions constructs a new informer for VolumeAttributesClass type with additional options.
+// NewVolumeAttributesClassInformerWithOptions constructs a new informer for VolumeAttributesClass type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredVolumeAttributesClassInformerWithOptions(client kubernetes.Interface, resyncPeriod time.Duration, indexers cache.Indexers, options VolumeAttributesClassInformerOptions) cache.SharedIndexInformer {
+func NewVolumeAttributesClassInformerWithOptions(client kubernetes.Interface, options VolumeAttributesClassInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "storage.k8s.io", Version: "v1beta1", Resource: "volumeattributesclasss"}
-	// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-	identifier, _ := cache.NewIdentifier(options.Name, gvr)
+	var identifier cache.Identifier
+	if options.InformerNamePrefix != "" {
+		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
+		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-volumeAttributesClass-informer", gvr)
+	}
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -113,15 +118,15 @@ func NewFilteredVolumeAttributesClassInformerWithOptions(client kubernetes.Inter
 		}, client),
 		&apistoragev1beta1.VolumeAttributesClass{},
 		cache.SharedIndexInformerOptions{
-			ResyncPeriod: resyncPeriod,
-			Indexers:     indexers,
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
 	)
 }
 
 func (f *volumeAttributesClassInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredVolumeAttributesClassInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewVolumeAttributesClassInformerWithOptions(client, VolumeAttributesClassInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *volumeAttributesClassInformer) Informer() cache.SharedIndexInformer {

@@ -60,7 +60,7 @@ func GlobalFIFOMetricsProvider() FIFOMetricsProvider {
 	return globalFIFOMetricsProvider
 }
 
-func newFIFOMetrics(id *Identifier, metricsProvider FIFOMetricsProvider) *fifoMetrics {
+func newFIFOMetrics(id Identifier, metricsProvider FIFOMetricsProvider) *fifoMetrics {
 	if metricsProvider == nil {
 		metricsProvider = globalFIFOMetricsProvider
 	}
