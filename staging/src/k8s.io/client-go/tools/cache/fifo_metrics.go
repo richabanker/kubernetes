@@ -23,16 +23,20 @@ limitations under the License.
 // pods).
 package cache
 
-import "sync"
+import (
+	"sync"
+)
 
 // FIFOMetricsProvider defines an interface for creating metrics that track FIFO queue operations.
 type FIFOMetricsProvider interface {
 	// NewQueuedItemMetric returns a gauge metric for tracking the total number of items
 	// currently queued and waiting to be processed.
+	// The returned metric should check id.Reserved() before updating to support
+	// dynamic informers that may shut down while the process is still running.
 	//
 	// For DeltaFIFO: Represents len(f.items) - the number of unique keys with pending deltas
 	// For RealFIFO: Represents len(f.items) - the total number of individual delta events queued
-	NewQueuedItemMetric(Identifier) GaugeMetric
+	NewQueuedItemMetric(id InformerNameAndResource) GaugeMetric
 }
 
 // fifoMetrics holds all metrics for a FIFO.
@@ -55,12 +59,7 @@ func SetFIFOMetricsProvider(metricsProvider FIFOMetricsProvider) {
 	})
 }
 
-// GlobalFIFOMetricsProvider returns the global FIFO metrics provider.
-func GlobalFIFOMetricsProvider() FIFOMetricsProvider {
-	return globalFIFOMetricsProvider
-}
-
-func newFIFOMetrics(id Identifier, metricsProvider FIFOMetricsProvider) *fifoMetrics {
+func newFIFOMetrics(id InformerNameAndResource, metricsProvider FIFOMetricsProvider) *fifoMetrics {
 	if metricsProvider == nil {
 		metricsProvider = globalFIFOMetricsProvider
 	}
@@ -68,13 +67,13 @@ func newFIFOMetrics(id Identifier, metricsProvider FIFOMetricsProvider) *fifoMet
 		numberOfQueuedItem: noopMetric{},
 	}
 
-	if id.IsUnique() {
+	if id.Reserved() {
 		metrics.numberOfQueuedItem = metricsProvider.NewQueuedItemMetric(id)
 	}
 
 	return metrics
 }
 
-func (noopFIFOMetricsProvider) NewQueuedItemMetric(Identifier) GaugeMetric {
+func (noopFIFOMetricsProvider) NewQueuedItemMetric(InformerNameAndResource) GaugeMetric {
 	return noopMetric{}
 }

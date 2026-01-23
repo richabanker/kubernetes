@@ -74,6 +74,7 @@ func (g *factoryGenerator) GenerateType(c *generator.Context, t *types.Type, w i
 		gvNewFuncs[groupPkgName] = c.Universe.Function(types.Name{Package: path.Join(g.outputPackage, groupPkgName), Name: "New"})
 	}
 	m := map[string]interface{}{
+		"cacheInformerName":              c.Universe.Type(cacheInformerName),
 		"cacheSharedIndexInformer":       c.Universe.Type(cacheSharedIndexInformer),
 		"cacheTransformFunc":             c.Universe.Type(cacheTransformFunc),
 		"groupVersions":                  g.groupVersions,
@@ -111,7 +112,7 @@ type sharedInformerFactory struct {
 	defaultResync {{.timeDuration|raw}}
 	customResync map[{{.reflectType|raw}}]{{.timeDuration|raw}}
 	transform {{.cacheTransformFunc|raw}}
-	informerNamePrefix string
+	informerName *{{.cacheInformerName|raw}}
 
 	informers map[{{.reflectType|raw}}]{{.cacheSharedIndexInformer|raw}}
 	// startedInformers is used for tracking which informers have been started.
@@ -158,18 +159,19 @@ func WithTransform(transform {{.cacheTransformFunc|raw}}) SharedInformerOption {
 	}
 }
 
-// WithInformerNamePrefix sets a prefix for informer names used in metrics.
-// For example, WithInformerNamePrefix("kube-controller-manager") will create
-// informer names like "kube-controller-manager-pod-informer".
-func WithInformerNamePrefix(prefix string) SharedInformerOption {
+// WithInformerName sets the InformerName for informer identity used in metrics.
+// The InformerName must be created via cache.NewInformerName() at startup,
+// which validates global uniqueness. Each informer type will register its
+// GVR under this name.
+func WithInformerName(informerName *{{.cacheInformerName|raw}}) SharedInformerOption {
 	return func(factory *sharedInformerFactory) *sharedInformerFactory {
-		factory.informerNamePrefix = prefix
+		factory.informerName = informerName
 		return factory
 	}
 }
 
-func (f *sharedInformerFactory) InformerNamePrefix() string {
-	return f.informerNamePrefix
+func (f *sharedInformerFactory) InformerName() *{{.cacheInformerName|raw}} {
+	return f.informerName
 }
 
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory for all namespaces.

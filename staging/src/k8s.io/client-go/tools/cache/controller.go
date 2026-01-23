@@ -432,7 +432,7 @@ type InformerOptions struct {
 
 	// Identifier is used to identify the FIFO for metrics and logging purposes.
 	// If not set, metrics will not be published.
-	Identifier Identifier
+	Identifier InformerNameAndResource
 
 	// FIFOMetricsProvider is the metrics provider for the FIFO queue.
 	// If not set, metrics will be no-ops.
@@ -806,7 +806,7 @@ func newInformer(clientState Store, options InformerOptions, keyFunc KeyFunc) Co
 	return New(cfg)
 }
 
-func newQueueFIFO(clientState Store, transform TransformFunc, identifier Identifier, metricsProvider FIFOMetricsProvider) Queue {
+func newQueueFIFO(clientState Store, transform TransformFunc, identifier InformerNameAndResource, metricsProvider FIFOMetricsProvider) Queue {
 	if clientgofeaturegate.FeatureGates().Enabled(clientgofeaturegate.InOrderInformers) {
 		options := RealFIFOOptions{
 			KeyFunction:     MetaNamespaceKeyFunc,

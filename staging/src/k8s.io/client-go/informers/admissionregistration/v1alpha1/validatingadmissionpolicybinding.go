@@ -54,11 +54,10 @@ type ValidatingAdmissionPolicyBindingInformerOptions struct {
 	// Indexers are the indexers for this informer.
 	Indexers cache.Indexers
 
-	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
-	// The full informer name will be InformerNamePrefix + "-validatingAdmissionPolicyBinding-informer",
-	// which is used together with the GroupVersionResource for metrics.
+	// InformerName is used to uniquely identify this informer for metrics.
 	// If not set, metrics will not be published for this informer.
-	InformerNamePrefix string
+	// Use cache.NewInformerName() to create an InformerName at startup.
+	InformerName *cache.InformerName
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -83,11 +82,7 @@ func NewFilteredValidatingAdmissionPolicyBindingInformer(client kubernetes.Inter
 // one. This reduces memory footprint and number of connections to the server.
 func NewValidatingAdmissionPolicyBindingInformerWithOptions(client kubernetes.Interface, options ValidatingAdmissionPolicyBindingInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "admissionregistration.k8s.io", Version: "v1alpha1", Resource: "validatingadmissionpolicybindings"}
-	var identifier cache.Identifier
-	if options.InformerNamePrefix != "" {
-		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-validatingAdmissionPolicyBinding-informer", gvr)
-	}
+	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -126,7 +121,7 @@ func NewValidatingAdmissionPolicyBindingInformerWithOptions(client kubernetes.In
 }
 
 func (f *validatingAdmissionPolicyBindingInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewValidatingAdmissionPolicyBindingInformerWithOptions(client, ValidatingAdmissionPolicyBindingInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
+	return NewValidatingAdmissionPolicyBindingInformerWithOptions(client, ValidatingAdmissionPolicyBindingInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *validatingAdmissionPolicyBindingInformer) Informer() cache.SharedIndexInformer {

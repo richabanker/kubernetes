@@ -79,17 +79,16 @@ func (g *informerGenerator) GenerateType(c *generator.Context, t *types.Type, w 
 
 	m := map[string]interface{}{
 		"apiScheme":                                c.Universe.Type(apiScheme),
-		"cacheIdentifier":                          c.Universe.Type(cacheIdentifier),
 		"cacheIndexers":                            c.Universe.Type(cacheIndexers),
 		"cacheListWatch":                           c.Universe.Type(cacheListWatch),
 		"cacheMetaNamespaceIndexFunc":              c.Universe.Function(cacheMetaNamespaceIndexFunc),
 		"cacheNamespaceIndex":                      c.Universe.Variable(cacheNamespaceIndex),
-		"cacheNewIdentifier":                       c.Universe.Function(cacheNewIdentifier),
 		"cacheNewSharedIndexInformer":              c.Universe.Function(cacheNewSharedIndexInformer),
 		"cacheNewSharedIndexInformerWithOptions":   c.Universe.Function(cacheNewSharedIndexInformerWithOptions),
 		"cacheSharedIndexInformer":                 c.Universe.Type(cacheSharedIndexInformer),
 		"cacheSharedIndexInformerOptions":          c.Universe.Type(cacheSharedIndexInformerOptions),
 		"cacheToListWatcherWithWatchListSemantics": c.Universe.Function(cacheToListWatcherWithWatchListSemanticsFunc),
+		"cacheInformerName":                        c.Universe.Type(cacheInformerName),
 		"clientSetInterface":                       clientSetInterface,
 		"contextContext":                           c.Universe.Type(contextContext),
 		"contextBackground":                        c.Universe.Function(contextBackgroundFunc),
@@ -154,11 +153,10 @@ type $.type|public$InformerOptions struct {
 	// Indexers are the indexers for this informer.
 	Indexers $.cacheIndexers|raw$
 
-	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
-	// The full informer name will be InformerNamePrefix + "-$.type|private$-informer",
-	// which is used together with the GroupVersionResource for metrics.
+	// InformerName is used to uniquely identify this informer for metrics.
 	// If not set, metrics will not be published for this informer.
-	InformerNamePrefix string
+	// Use cache.NewInformerName() to create an InformerName at startup.
+	InformerName *$.cacheInformerName|raw$
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions $.interfacesTweakListOptionsFunc|raw$
@@ -189,11 +187,7 @@ var typeInformerPublicConstructorWithOptions = `
 // one. This reduces memory footprint and number of connections to the server.
 func New$.type|public$InformerWithOptions(client $.clientSetInterface|raw$$if .namespaced$, namespace string$end$, options $.type|public$InformerOptions) $.cacheSharedIndexInformer|raw$ {
 	gvr := $.schemaGroupVersionResource|raw${Group: "$.groupName$", Version: "$.versionName$", Resource: "$.resourceName$"}
-	var identifier $.cacheIdentifier|raw$
-	if options.InformerNamePrefix != "" {
-		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-		identifier, _ = $.cacheNewIdentifier|raw$(options.InformerNamePrefix + "-$.type|private$-informer", gvr)
-	}
+	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return $.cacheNewSharedIndexInformerWithOptions|raw$(
 		$.cacheToListWatcherWithWatchListSemantics|raw$(&$.cacheListWatch|raw${
@@ -234,7 +228,7 @@ func New$.type|public$InformerWithOptions(client $.clientSetInterface|raw$$if .n
 
 var typeInformerConstructor = `
 func (f *$.type|private$Informer) defaultInformer(client $.clientSetInterface|raw$, resyncPeriod $.timeDuration|raw$) $.cacheSharedIndexInformer|raw$ {
-	return New$.type|public$InformerWithOptions(client$if .namespaced$, f.namespace$end$, $.type|public$InformerOptions{ResyncPeriod: resyncPeriod, Indexers: $.cacheIndexers|raw${$.cacheNamespaceIndex|raw$: $.cacheMetaNamespaceIndexFunc|raw$}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
+	return New$.type|public$InformerWithOptions(client$if .namespaced$, f.namespace$end$, $.type|public$InformerOptions{ResyncPeriod: resyncPeriod, Indexers: $.cacheIndexers|raw${$.cacheNamespaceIndex|raw$: $.cacheMetaNamespaceIndexFunc|raw$}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 `
 

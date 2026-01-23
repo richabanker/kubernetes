@@ -55,11 +55,10 @@ type SecretInformerOptions struct {
 	// Indexers are the indexers for this informer.
 	Indexers cache.Indexers
 
-	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
-	// The full informer name will be InformerNamePrefix + "-secret-informer",
-	// which is used together with the GroupVersionResource for metrics.
+	// InformerName is used to uniquely identify this informer for metrics.
 	// If not set, metrics will not be published for this informer.
-	InformerNamePrefix string
+	// Use cache.NewInformerName() to create an InformerName at startup.
+	InformerName *cache.InformerName
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -84,11 +83,7 @@ func NewFilteredSecretInformer(client kubernetes.Interface, namespace string, re
 // one. This reduces memory footprint and number of connections to the server.
 func NewSecretInformerWithOptions(client kubernetes.Interface, namespace string, options SecretInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}
-	var identifier cache.Identifier
-	if options.InformerNamePrefix != "" {
-		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-secret-informer", gvr)
-	}
+	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -127,7 +122,7 @@ func NewSecretInformerWithOptions(client kubernetes.Interface, namespace string,
 }
 
 func (f *secretInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewSecretInformerWithOptions(client, f.namespace, SecretInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
+	return NewSecretInformerWithOptions(client, f.namespace, SecretInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *secretInformer) Informer() cache.SharedIndexInformer {

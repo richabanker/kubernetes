@@ -55,11 +55,10 @@ type IngressInformerOptions struct {
 	// Indexers are the indexers for this informer.
 	Indexers cache.Indexers
 
-	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
-	// The full informer name will be InformerNamePrefix + "-ingress-informer",
-	// which is used together with the GroupVersionResource for metrics.
+	// InformerName is used to uniquely identify this informer for metrics.
 	// If not set, metrics will not be published for this informer.
-	InformerNamePrefix string
+	// Use cache.NewInformerName() to create an InformerName at startup.
+	InformerName *cache.InformerName
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -84,11 +83,7 @@ func NewFilteredIngressInformer(client kubernetes.Interface, namespace string, r
 // one. This reduces memory footprint and number of connections to the server.
 func NewIngressInformerWithOptions(client kubernetes.Interface, namespace string, options IngressInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresss"}
-	var identifier cache.Identifier
-	if options.InformerNamePrefix != "" {
-		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-ingress-informer", gvr)
-	}
+	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -127,7 +122,7 @@ func NewIngressInformerWithOptions(client kubernetes.Interface, namespace string
 }
 
 func (f *ingressInformer) defaultInformer(client kubernetes.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewIngressInformerWithOptions(client, f.namespace, IngressInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
+	return NewIngressInformerWithOptions(client, f.namespace, IngressInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *ingressInformer) Informer() cache.SharedIndexInformer {

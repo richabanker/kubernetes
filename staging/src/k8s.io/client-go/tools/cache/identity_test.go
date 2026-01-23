@@ -34,68 +34,155 @@ var (
 	configMapsGVR = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
 )
 
-func TestIdentifierUniqueness(t *testing.T) {
+func TestNewInformerName(t *testing.T) {
 	tests := []struct {
-		name       string
-		setup      func() // create identifiers before the test
-		idName     string
-		gvr        schema.GroupVersionResource
-		wantUnique bool
-		wantErr    bool
+		name    string
+		setup   func()
+		inName  string
+		wantErr bool
 	}{
 		{
-			name:       "first identifier with name is unique",
-			setup:      func() {},
-			idName:     "my-fifo",
-			gvr:        podsGVR,
-			wantUnique: true,
-			wantErr:    false,
+			name:    "first name is unique",
+			setup:   func() {},
+			inName:  "my-informer",
+			wantErr: false,
 		},
 		{
-			name: "same name different gvr is unique",
+			name: "duplicate name returns error",
 			setup: func() {
-				_, _ = NewIdentifier("my-fifo", podsGVR)
+				_, _ = NewInformerName("my-informer")
 			},
-			idName:     "my-fifo",
-			gvr:        configMapsGVR,
-			wantUnique: true,
-			wantErr:    false,
+			inName:  "my-informer",
+			wantErr: true,
 		},
 		{
-			name: "different name same gvr is unique",
-			setup: func() {
-				_, _ = NewIdentifier("fifo-1", podsGVR)
-			},
-			idName:     "fifo-2",
-			gvr:        podsGVR,
-			wantUnique: true,
-			wantErr:    false,
+			name:    "empty name returns error",
+			setup:   func() {},
+			inName:  "",
+			wantErr: true,
 		},
 		{
-			name: "duplicate name+gvr returns error",
+			name: "different name is unique",
 			setup: func() {
-				_, _ = NewIdentifier("my-fifo", podsGVR)
+				_, _ = NewInformerName("informer-1")
 			},
-			idName:     "my-fifo",
-			gvr:        podsGVR,
-			wantUnique: false,
-			wantErr:    true,
+			inName:  "informer-2",
+			wantErr: false,
+		},
+		{
+			name: "released name can be reused",
+			setup: func() {
+				n, _ := NewInformerName("my-informer")
+				n.Release()
+			},
+			inName:  "my-informer",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ResetRegisteredIdentitiesForTest()
+			ResetInformerNamesForTesting()
 			tt.setup()
 
-			id, err := NewIdentifier(tt.idName, tt.gvr)
-
+			_, err := NewInformerName(tt.inName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewIdentifier() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if got := id.IsUnique(); got != tt.wantUnique {
-				t.Errorf("IsUnique() = %v, want %v", got, tt.wantUnique)
+				t.Errorf("NewInformerName() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestWithResource(t *testing.T) {
+	tests := []struct {
+		name         string
+		setup        func() *InformerName
+		gvr          schema.GroupVersionResource
+		wantReserved bool
+	}{
+		{
+			name: "first GVR is reserved",
+			setup: func() *InformerName {
+				n, _ := NewInformerName("my-informer")
+				return n
+			},
+			gvr:          podsGVR,
+			wantReserved: true,
+		},
+		{
+			name: "same GVR second time is not reserved",
+			setup: func() *InformerName {
+				n, _ := NewInformerName("my-informer")
+				_ = n.WithResource(podsGVR)
+				return n
+			},
+			gvr:          podsGVR,
+			wantReserved: false,
+		},
+		{
+			name: "different GVR is reserved",
+			setup: func() *InformerName {
+				n, _ := NewInformerName("my-informer")
+				_ = n.WithResource(podsGVR)
+				return n
+			},
+			gvr:          configMapsGVR,
+			wantReserved: true,
+		},
+		{
+			name: "nil InformerName returns not reserved",
+			setup: func() *InformerName {
+				return nil
+			},
+			gvr:          podsGVR,
+			wantReserved: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ResetInformerNamesForTesting()
+			n := tt.setup()
+
+			id := n.WithResource(tt.gvr)
+			if got := id.Reserved(); got != tt.wantReserved {
+				t.Errorf("Reserved() = %v, want %v", got, tt.wantReserved)
+			}
+		})
+	}
+}
+
+func TestRelease(t *testing.T) {
+	ResetInformerNamesForTesting()
+
+	n, err := NewInformerName("my-informer")
+	if err != nil {
+		t.Fatalf("NewInformerName() error = %v", err)
+	}
+
+	// Get a reserved identifier
+	id := n.WithResource(podsGVR)
+	if !id.Reserved() {
+		t.Error("Expected Reserved() = true before Release()")
+	}
+
+	// Release the name
+	n.Release()
+
+	// The identifier should no longer be reserved
+	if id.Reserved() {
+		t.Error("Expected Reserved() = false after Release()")
+	}
+
+	// Should be able to reuse the name
+	n2, err := NewInformerName("my-informer")
+	if err != nil {
+		t.Errorf("NewInformerName() after Release() error = %v", err)
+	}
+
+	// New identifier from new name should be reserved
+	id2 := n2.WithResource(podsGVR)
+	if !id2.Reserved() {
+		t.Error("Expected Reserved() = true for new InformerName after Release()")
 	}
 }

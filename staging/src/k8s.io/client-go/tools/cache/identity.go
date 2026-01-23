@@ -26,94 +26,185 @@ package cache
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 )
 
-// identifierRegistry tracks all registered identifier keys to detect collisions.
-// Keys are composed of name+gvr. Only explicitly named identifiers are registered.
-var identifierRegistry = struct {
+// informerNameRegistry tracks all registered InformerName instances to detect collisions.
+// Names must be globally unique across a process.
+var informerNameRegistry = struct {
 	sync.Mutex
-	keys map[string]bool
+	names map[string]*InformerName
 }{
-	keys: make(map[string]bool),
+	names: make(map[string]*InformerName),
 }
 
-// Identifier is used to identify of informers and FIFO for metrics and logging purposes.
+// InformerName represents a named informer identity used for metrics.
+// It is created once at startup (e.g., in cmd/kube-controller-manager) and passed to
+// the SharedInformerFactory. The name must be globally unique within a process.
 //
-// Metrics are only published for identifiers that are:
-// 1. Explicitly named (non-empty name)
-// 2. Unique (no other identifier has the same name+gvr combination)
-//
-// This ensures that metrics labels are consistent across restarts and don't collide.
-// Unnamed FIFOs will not have metrics published - it's the responsibility of
-// client authors to name all FIFOs they care about observing.
-type Identifier struct {
-	// name is the name used to identify this informer/FIFO.
+// InformerName tracks which GVRs have been registered under
+// this name. When an informer requests a name+GVR combination, the first one wins
+// and gets metrics enabled. Subsequent requests for the same GVR silently get
+// metrics disabled.
+type InformerName struct {
 	name string
-	// gvr is the GroupVersionResource of the objects being watched.
-	gvr schema.GroupVersionResource
-	// unique indicates whether this identifier was successfully registered
-	// as unique (true) or if it collided with an existing name+gvr (false).
-	unique bool
+	// lock protects gvrs map modifications
+	lock sync.Mutex
+	// reserved is flipped to false when Release() is called
+	reserved *atomic.Bool
+	// gvrs maps each registered GVR to its atomic bool for lock-free Reserved() checks
+	gvrs map[schema.GroupVersionResource]*atomic.Bool
 }
 
-// NewIdentifier creates a new Identifier with the given name and GVR.
-// If name and GVR are both non-empty, it will be registered for uniqueness tracking using
-// both name and GVR as the composite key.
-// If name or GVR is empty, metrics will not be published for this identifier.
-// If the name+GVR collides with an existing identifier, IsUnique() will return false,
-// metrics will not be published for this identifier, and an error is returned.
-func NewIdentifier(name string, gvr schema.GroupVersionResource) (Identifier, error) {
-	id := Identifier{name: name, gvr: gvr}
-	if name == "" || gvr.Empty() {
-		return id, nil
-	}
-	if err := registerIdentifier(id.name, id.gvr); err != nil {
-		return id, err
-	}
-	id.unique = true
-	return id, nil
-}
-
-// registerIdentifier attempts to register a name+gvr key and returns nil if the key
-// was unique (not previously registered), or an error if it collides.
-func registerIdentifier(name string, gvr schema.GroupVersionResource) error {
-	key := name + "/" + gvr.String()
-
-	identifierRegistry.Lock()
-	defer identifierRegistry.Unlock()
-
-	if identifierRegistry.keys[key] {
-		return fmt.Errorf("Identifier %s (gvr=%s) is not unique - metrics will not be published for this identifier", name, gvr.String())
+// NewInformerName creates a new InformerName with the given name.
+// The name must be globally unique within the process. If a name collision
+// is detected, an error is returned.
+//
+// The caller should call Release() when the informer name is no longer needed
+// (eg. at shutdown) to allow the name to be reused.
+func NewInformerName(name string) (*InformerName, error) {
+	if name == "" {
+		return nil, fmt.Errorf("informer name cannot be empty")
 	}
 
-	identifierRegistry.keys[key] = true
-	return nil
+	informerNameRegistry.Lock()
+	defer informerNameRegistry.Unlock()
+
+	if existing, ok := informerNameRegistry.names[name]; ok {
+		// Check if the existing one is still reserved
+		if existing.reserved.Load() {
+			return nil, fmt.Errorf("informer name %q is already registered", name)
+		}
+		// Previous one was released, we can reuse the name
+		delete(informerNameRegistry.names, name)
+	}
+
+	reserved := &atomic.Bool{}
+	reserved.Store(true)
+
+	n := &InformerName{
+		name:     name,
+		reserved: reserved,
+		gvrs:     make(map[schema.GroupVersionResource]*atomic.Bool),
+	}
+
+	informerNameRegistry.names[name] = n
+	return n, nil
 }
 
-func (id Identifier) Name() string {
-	return id.name
+// WithResource registers a GVR under this InformerName and returns an
+// InformerNameAndResource that can be passed to FIFO/SharedIndexInformer.
+//
+// If this is the first time this GVR is registered under this name, the
+// returned InformerNameAndResource will have Reserved() return true.
+// If the GVR was already registered, the returned InformerNameAndResource
+// will have Reserved() return false to prevent duplicate metrics.
+func (n *InformerName) WithResource(gvr schema.GroupVersionResource) InformerNameAndResource {
+	if n == nil {
+		klog.V(4).Infof("Informer for %s/%s/%s has no name configured - metrics will not be published. ",
+			gvr.Group, gvr.Version, gvr.Resource)
+		return InformerNameAndResource{}
+	}
+
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	retval := InformerNameAndResource{name: n.name, gvr: gvr, reserved: &atomic.Bool{}}
+	if n.reserved.Load() {
+		if _, gvrExists := n.gvrs[gvr]; !gvrExists {
+			retval.reserved.Store(true)
+			n.gvrs[gvr] = retval.reserved
+		} else {
+			klog.Warningf("Duplicate informer for %s/%s/%s under informer name %q - metrics will not be published",
+				gvr.Group, gvr.Version, gvr.Resource, n.name)
+		}
+	}
+	return retval
 }
 
-func (id Identifier) GroupVersionResource() schema.GroupVersionResource {
-	return id.gvr
+// Release marks this InformerName as no longer in use.
+// All InformerNameAndResource instances created from this InformerName
+// will have their Reserved() return false after this call.
+// The name can be reused by a subsequent NewInformerName call.
+func (n *InformerName) Release() {
+	if n == nil {
+		return
+	}
+
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	// Flip the main reserved flag
+	n.reserved.Store(false)
+
+	// Flip all GVR-specific flags so that any InformerNameAndResource
+	// instances that were returned from WithResource() will have
+	// Reserved() return false. These instances hold pointers to the
+	// same atomic bools, so we must flip them before clearing the map.
+	for _, reserved := range n.gvrs {
+		reserved.Store(false)
+	}
+
+	// Clear the map
+	n.gvrs = make(map[schema.GroupVersionResource]*atomic.Bool)
+
+	// Remove from global registry
+	informerNameRegistry.Lock()
+	delete(informerNameRegistry.names, n.name)
+	informerNameRegistry.Unlock()
 }
 
-// IsUnique returns true if this identifier has an explicit name+gvr that is unique
-// across all identifiers. Metrics are only published for unique identifiers.
+// Name returns the name of this InformerName.
+func (n *InformerName) Name() string {
+	if n == nil {
+		return ""
+	}
+	return n.name
+}
+
+// InformerNameAndResource represents a specific informer identity with both
+// a name and a GVR. This is passed to FIFO and SharedIndexInformer for metrics.
+//
+// The Reserved() method provides a lock-free check to determine
+// if metrics should be published. This is called on every queue operation
+// so it must be fast.
+type InformerNameAndResource struct {
+	name     string
+	gvr      schema.GroupVersionResource
+	reserved *atomic.Bool
+}
+
+// Reserved returns true if this informer identity is reserved for metrics.
+// This is a lock-free atomic load, safe and fast for hot-path usage.
 //
 // Returns false if:
-// - The identifier has no name (unnamed FIFOs don't get metrics)
-// - The identifier's name+gvr collides with another identifier
-func (id Identifier) IsUnique() bool {
-	return id.unique
+// - The InformerNameAndResource is zero-valued (no name was configured)
+// - The parent InformerName was released
+// - This was a duplicate GVR registration
+func (n InformerNameAndResource) Reserved() bool {
+	if n.reserved == nil {
+		return false
+	}
+	return n.reserved.Load()
 }
 
-// ResetRegisteredIdentitiesForTest clears the identifier registry.
+// Name returns the informer name.
+func (n InformerNameAndResource) Name() string {
+	return n.name
+}
+
+// GroupVersionResource returns the GVR for this informer identity.
+func (n InformerNameAndResource) GroupVersionResource() schema.GroupVersionResource {
+	return n.gvr
+}
+
+// ResetInformerNamesForTesting clears the informer name registry.
 // This is exported for testing purposes only.
-func ResetRegisteredIdentitiesForTest() {
-	identifierRegistry.Lock()
-	defer identifierRegistry.Unlock()
-	identifierRegistry.keys = make(map[string]bool)
+func ResetInformerNamesForTesting() {
+	informerNameRegistry.Lock()
+	defer informerNameRegistry.Unlock()
+	informerNameRegistry.names = make(map[string]*InformerName)
 }

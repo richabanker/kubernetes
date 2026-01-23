@@ -333,7 +333,7 @@ type SharedIndexInformerOptions struct {
 
 	// Identifier is used to identify the FIFO for metrics and logging purposes.
 	// If not set, metrics will not be published.
-	Identifier Identifier
+	Identifier InformerNameAndResource
 
 	// FIFOMetricsProvider is the metrics provider for the FIFO queue.
 	// If not set, metrics will be no-ops.
@@ -462,7 +462,7 @@ type sharedIndexInformer struct {
 	transform TransformFunc
 
 	// identifier is used to identify this informer for metrics and logging purposes.
-	identifier Identifier
+	identifier InformerNameAndResource
 
 	// fifoMetricsProvider is the metrics provider for the FIFO queue.
 	fifoMetricsProvider FIFOMetricsProvider

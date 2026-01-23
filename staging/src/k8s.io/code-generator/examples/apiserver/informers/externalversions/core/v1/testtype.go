@@ -55,11 +55,10 @@ type TestTypeInformerOptions struct {
 	// Indexers are the indexers for this informer.
 	Indexers cache.Indexers
 
-	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
-	// The full informer name will be InformerNamePrefix + "-testType-informer",
-	// which is used together with the GroupVersionResource for metrics.
+	// InformerName is used to uniquely identify this informer for metrics.
 	// If not set, metrics will not be published for this informer.
-	InformerNamePrefix string
+	// Use cache.NewInformerName() to create an InformerName at startup.
+	InformerName *cache.InformerName
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -84,11 +83,7 @@ func NewFilteredTestTypeInformer(client versioned.Interface, namespace string, r
 // one. This reduces memory footprint and number of connections to the server.
 func NewTestTypeInformerWithOptions(client versioned.Interface, namespace string, options TestTypeInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "testtypes"}
-	var identifier cache.Identifier
-	if options.InformerNamePrefix != "" {
-		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-testType-informer", gvr)
-	}
+	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -127,7 +122,7 @@ func NewTestTypeInformerWithOptions(client versioned.Interface, namespace string
 }
 
 func (f *testTypeInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewTestTypeInformerWithOptions(client, f.namespace, TestTypeInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
+	return NewTestTypeInformerWithOptions(client, f.namespace, TestTypeInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *testTypeInformer) Informer() cache.SharedIndexInformer {

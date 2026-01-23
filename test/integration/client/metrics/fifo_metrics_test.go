@@ -99,12 +99,13 @@ func TestRealFIFO_Metrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache.ResetRegisteredIdentitiesForTest()
+			cache.ResetInformerNamesForTesting()
 			metricsProvider := newTestFIFOMetricsProvider()
-			id, err := cache.NewIdentifier("test-fifo", podsGVR)
+			informerName, err := cache.NewInformerName("test-fifo")
 			if err != nil {
-				t.Fatalf("NewIdentifier() unexpected error: %v", err)
+				t.Fatalf("NewInformerName() unexpected error: %v", err)
 			}
+			id := informerName.WithResource(podsGVR)
 
 			f := cache.NewRealFIFOWithOptions(cache.RealFIFOOptions{
 				KeyFunction:     testFifoObjectKeyFunc,
@@ -117,11 +118,11 @@ func TestRealFIFO_Metrics(t *testing.T) {
 				action(f)
 			}
 
-			want := fmt.Sprintf(`# HELP fifo_queued_items [ALPHA] Number of items currently queued in the FIFO.
-# TYPE fifo_queued_items gauge
-fifo_queued_items{group="",name="test-fifo",resource="pods",version="v1"} %d
+			want := fmt.Sprintf(`# HELP informer_queued_items [ALPHA] Number of items currently queued in the FIFO.
+# TYPE informer_queued_items gauge
+informer_queued_items{group="",name="test-fifo",resource="pods",version="v1"} %d
 `, tt.expectedMetric)
-			if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "fifo_queued_items"); err != nil {
+			if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "informer_queued_items"); err != nil {
 				t.Fatal(err)
 			}
 		})
@@ -129,14 +130,11 @@ fifo_queued_items{group="",name="test-fifo",resource="pods",version="v1"} %d
 }
 
 func TestRealFIFO_MetricsNotPublishedForUnnamedFIFO(t *testing.T) {
-	cache.ResetRegisteredIdentitiesForTest()
+	cache.ResetInformerNamesForTesting()
 	metricsProvider := newTestFIFOMetricsProvider()
 
-	// Identifier with empty name - should not be error.
-	id, err := cache.NewIdentifier("", podsGVR)
-	if err != nil {
-		t.Fatalf("NewIdentifier() expected no error for empty name, got error: %v", err)
-	}
+	// No InformerName configured - should not publish metrics
+	var id cache.InformerNameAndResource
 	f := cache.NewRealFIFOWithOptions(cache.RealFIFOOptions{
 		KeyFunction:     testFifoObjectKeyFunc,
 		KnownObjects:    emptyKnownObjects(),
@@ -148,21 +146,27 @@ func TestRealFIFO_MetricsNotPublishedForUnnamedFIFO(t *testing.T) {
 	_ = f.Add(mkFifoObj("foo", 1))
 	_ = f.Add(mkFifoObj("bar", 2))
 
-	// No metrics should be created because the identifier is not unique (empty name)
+	// No metrics should be created because there's no identifier configured
 	want := ""
-	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "fifo_queued_items"); err != nil {
+	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "informer_queued_items"); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestRealFIFO_MetricsNotPublishedForDuplicateIdentifier(t *testing.T) {
-	cache.ResetRegisteredIdentitiesForTest()
+func TestRealFIFO_MetricsNotPublishedForDuplicateGVR(t *testing.T) {
+	cache.ResetInformerNamesForTesting()
 	metricsProvider := newTestFIFOMetricsProvider()
 
-	// Create first FIFO with a name - this should be unique
-	id1, err := cache.NewIdentifier("duplicate-name", podsGVR)
+	// Create InformerName
+	informerName, err := cache.NewInformerName("duplicate-test")
 	if err != nil {
-		t.Fatalf("NewIdentifier() unexpected error: %v", err)
+		t.Fatalf("NewInformerName() unexpected error: %v", err)
+	}
+
+	// Create first FIFO with a GVR - this should be reserved
+	id1 := informerName.WithResource(podsGVR)
+	if !id1.Reserved() {
+		t.Fatal("Expected first identifier to be reserved")
 	}
 	f1 := cache.NewRealFIFOWithOptions(cache.RealFIFOOptions{
 		KeyFunction:     testFifoObjectKeyFunc,
@@ -171,10 +175,10 @@ func TestRealFIFO_MetricsNotPublishedForDuplicateIdentifier(t *testing.T) {
 		MetricsProvider: metricsProvider,
 	})
 
-	// Create second FIFO with the same name - this should NOT be unique
-	id2, err := cache.NewIdentifier("duplicate-name", podsGVR)
-	if err == nil {
-		t.Fatalf("NewIdentifier() expected error for duplicate name, got nil")
+	// Create second FIFO with the same GVR - this should NOT be reserved
+	id2 := informerName.WithResource(podsGVR)
+	if id2.Reserved() {
+		t.Fatal("Expected second identifier with same GVR to not be reserved")
 	}
 	f2 := cache.NewRealFIFOWithOptions(cache.RealFIFOOptions{
 		KeyFunction:     testFifoObjectKeyFunc,
@@ -188,24 +192,25 @@ func TestRealFIFO_MetricsNotPublishedForDuplicateIdentifier(t *testing.T) {
 	_ = f2.Add(mkFifoObj("bar", 2))
 
 	// Only f1's metric should be published, f2 uses noopMetric
-	want := `# HELP fifo_queued_items [ALPHA] Number of items currently queued in the FIFO.
-# TYPE fifo_queued_items gauge
-fifo_queued_items{group="",name="duplicate-name",resource="pods",version="v1"} 1
+	want := `# HELP informer_queued_items [ALPHA] Number of items currently queued in the FIFO.
+# TYPE informer_queued_items gauge
+informer_queued_items{group="",name="duplicate-test",resource="pods",version="v1"} 1
 `
-	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "fifo_queued_items"); err != nil {
+	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "informer_queued_items"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRealFIFO_MetricsTrackedIndependentlyForDifferentFIFOs(t *testing.T) {
-	cache.ResetRegisteredIdentitiesForTest()
+	cache.ResetInformerNamesForTesting()
 	metricsProvider := newTestFIFOMetricsProvider()
 
-	// Create two FIFOs with different names - both should be unique
-	id1, err := cache.NewIdentifier("fifo-1", podsGVR)
+	// Create two InformerNames with different names - both should be unique
+	informerName1, err := cache.NewInformerName("fifo-1")
 	if err != nil {
-		t.Fatalf("NewIdentifier() unexpected error: %v", err)
+		t.Fatalf("NewInformerName() unexpected error: %v", err)
 	}
+	id1 := informerName1.WithResource(podsGVR)
 	f1 := cache.NewRealFIFOWithOptions(cache.RealFIFOOptions{
 		KeyFunction:     testFifoObjectKeyFunc,
 		KnownObjects:    emptyKnownObjects(),
@@ -213,10 +218,11 @@ func TestRealFIFO_MetricsTrackedIndependentlyForDifferentFIFOs(t *testing.T) {
 		MetricsProvider: metricsProvider,
 	})
 
-	id2, err := cache.NewIdentifier("fifo-2", podsGVR)
+	informerName2, err := cache.NewInformerName("fifo-2")
 	if err != nil {
-		t.Fatalf("NewIdentifier() unexpected error: %v", err)
+		t.Fatalf("NewInformerName() unexpected error: %v", err)
 	}
+	id2 := informerName2.WithResource(podsGVR)
 	f2 := cache.NewRealFIFOWithOptions(cache.RealFIFOOptions{
 		KeyFunction:     testFifoObjectKeyFunc,
 		KnownObjects:    emptyKnownObjects(),
@@ -232,24 +238,24 @@ func TestRealFIFO_MetricsTrackedIndependentlyForDifferentFIFOs(t *testing.T) {
 	_ = f2.Add(mkFifoObj("baz", 3))
 
 	// Verify metrics are tracked independently
-	want := `# HELP fifo_queued_items [ALPHA] Number of items currently queued in the FIFO.
-# TYPE fifo_queued_items gauge
-fifo_queued_items{group="",name="fifo-1",resource="pods",version="v1"} 2
-fifo_queued_items{group="",name="fifo-2",resource="pods",version="v1"} 1
+	want := `# HELP informer_queued_items [ALPHA] Number of items currently queued in the FIFO.
+# TYPE informer_queued_items gauge
+informer_queued_items{group="",name="fifo-1",resource="pods",version="v1"} 2
+informer_queued_items{group="",name="fifo-2",resource="pods",version="v1"} 1
 `
-	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "fifo_queued_items"); err != nil {
+	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(want), "informer_queued_items"); err != nil {
 		t.Fatal(err)
 	}
 
 	// Pop from f1 and verify its metric decreases while f2's stays the same
 	cache.Pop(f1)
 
-	wantAfterPop := `# HELP fifo_queued_items [ALPHA] Number of items currently queued in the FIFO.
-# TYPE fifo_queued_items gauge
-fifo_queued_items{group="",name="fifo-1",resource="pods",version="v1"} 1
-fifo_queued_items{group="",name="fifo-2",resource="pods",version="v1"} 1
+	wantAfterPop := `# HELP informer_queued_items [ALPHA] Number of items currently queued in the FIFO.
+# TYPE informer_queued_items gauge
+informer_queued_items{group="",name="fifo-1",resource="pods",version="v1"} 1
+informer_queued_items{group="",name="fifo-2",resource="pods",version="v1"} 1
 `
-	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(wantAfterPop), "fifo_queued_items"); err != nil {
+	if err := testutil.GatherAndCompare(metricsProvider.registry, strings.NewReader(wantAfterPop), "informer_queued_items"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -323,7 +329,8 @@ func newTestFIFOMetricsProvider() *testFIFOMetricsProvider {
 	registry := metrics.NewKubeRegistry()
 	gauge := metrics.NewGaugeVec(
 		&metrics.GaugeOpts{
-			Name:           "fifo_queued_items",
+			Subsystem:      "informer",
+			Name:           "queued_items",
 			Help:           "Number of items currently queued in the FIFO.",
 			StabilityLevel: metrics.ALPHA,
 		},
@@ -336,6 +343,6 @@ func newTestFIFOMetricsProvider() *testFIFOMetricsProvider {
 	}
 }
 
-func (p *testFIFOMetricsProvider) NewQueuedItemMetric(id cache.Identifier) cache.GaugeMetric {
+func (p *testFIFOMetricsProvider) NewQueuedItemMetric(id cache.InformerNameAndResource) cache.GaugeMetric {
 	return p.gauge.WithLabelValues(id.Name(), id.GroupVersionResource().Group, id.GroupVersionResource().Version, id.GroupVersionResource().Resource)
 }

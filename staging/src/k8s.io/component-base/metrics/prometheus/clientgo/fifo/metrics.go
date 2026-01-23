@@ -25,7 +25,8 @@ import (
 var (
 	fifoQueuedItems = k8smetrics.NewGaugeVec(
 		&k8smetrics.GaugeOpts{
-			Name:           "fifo_queued_items",
+			Subsystem:      "informer",
+			Name:           "queued_items",
 			Help:           "Number of items currently queued in the FIFO.",
 			StabilityLevel: k8smetrics.ALPHA,
 		},
@@ -40,6 +41,32 @@ func init() {
 
 type fifoMetricsProvider struct{}
 
-func (fifoMetricsProvider) NewQueuedItemMetric(id cache.Identifier) cache.GaugeMetric {
-	return fifoQueuedItems.WithLabelValues(id.Name(), id.GroupVersionResource().Group, id.GroupVersionResource().Version, id.GroupVersionResource().Resource)
+func (fifoMetricsProvider) NewQueuedItemMetric(id cache.InformerNameAndResource) cache.GaugeMetric {
+	return &reservedGaugeMetric{
+		id: id,
+		gauge: fifoQueuedItems.WithLabelValues(
+			id.Name(),
+			id.GroupVersionResource().Group,
+			id.GroupVersionResource().Version,
+			id.GroupVersionResource().Resource,
+		),
+	}
 }
+
+// reservedGaugeMetric wraps a gauge and only updates it if the identifier
+// is still reserved. This supports dynamic informers (e.g., GC, ResourceQuota)
+// that may shut down while the process is still running.
+type reservedGaugeMetric struct {
+	id    cache.InformerNameAndResource
+	gauge cache.GaugeMetric
+}
+
+func (r *reservedGaugeMetric) Set(value float64) {
+	if r.id.Reserved() {
+		r.gauge.Set(value)
+	}
+}
+
+type noopMetric struct{}
+
+func (noopMetric) Set(float64) {}

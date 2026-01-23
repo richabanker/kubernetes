@@ -55,11 +55,10 @@ type ExampleInformerOptions struct {
 	// Indexers are the indexers for this informer.
 	Indexers cache.Indexers
 
-	// InformerNamePrefix is used as a prefix to uniquely identify this informer.
-	// The full informer name will be InformerNamePrefix + "-example-informer",
-	// which is used together with the GroupVersionResource for metrics.
+	// InformerName is used to uniquely identify this informer for metrics.
 	// If not set, metrics will not be published for this informer.
-	InformerNamePrefix string
+	// Use cache.NewInformerName() to create an InformerName at startup.
+	InformerName *cache.InformerName
 
 	// TweakListOptions is an optional function to modify the list options.
 	TweakListOptions internalinterfaces.TweakListOptionsFunc
@@ -84,11 +83,7 @@ func NewFilteredExampleInformer(client versioned.Interface, namespace string, re
 // one. This reduces memory footprint and number of connections to the server.
 func NewExampleInformerWithOptions(client versioned.Interface, namespace string, options ExampleInformerOptions) cache.SharedIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "cr.example.apiextensions.k8s.io", Version: "v1", Resource: "examples"}
-	var identifier cache.Identifier
-	if options.InformerNamePrefix != "" {
-		// Errors are ignored - if identifier creation fails, metrics will not be published for this informer.
-		identifier, _ = cache.NewIdentifier(options.InformerNamePrefix+"-example-informer", gvr)
-	}
+	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
 	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
@@ -127,7 +122,7 @@ func NewExampleInformerWithOptions(client versioned.Interface, namespace string,
 }
 
 func (f *exampleInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewExampleInformerWithOptions(client, f.namespace, ExampleInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerNamePrefix: f.factory.InformerNamePrefix(), TweakListOptions: f.tweakListOptions})
+	return NewExampleInformerWithOptions(client, f.namespace, ExampleInformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *exampleInformer) Informer() cache.SharedIndexInformer {

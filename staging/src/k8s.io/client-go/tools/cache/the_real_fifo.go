@@ -52,9 +52,9 @@ type RealFIFOOptions struct {
 	AtomicEvents bool
 
 	// Identifier is used to identify this FIFO for metrics and logging purposes.
-	// Optional. If zero value (Identifier{}), metrics will not be published and trace logs will not
+	// Optional. If zero value, metrics will not be published and trace logs will not
 	// include Name or Resource fields.
-	Identifier Identifier
+	Identifier InformerNameAndResource
 
 	// MetricsProvider is used to create metrics for the FIFO.
 	MetricsProvider FIFOMetricsProvider
@@ -104,7 +104,7 @@ type RealFIFO struct {
 	batchSize int
 
 	// identifier is used to identify this FIFO for metrics and logging purposes.
-	identifier Identifier
+	identifier InformerNameAndResource
 
 	// metrics holds all metrics for this FIFO.
 	metrics *fifoMetrics
