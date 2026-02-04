@@ -43,6 +43,8 @@ type RealFIFOOptions struct {
 	// If set, will be called for objects before enqueueing them. Please
 	// see the comment on TransformFunc for details.
 	Transformer TransformFunc
+
+	reportLength func(float64)
 }
 
 const (
@@ -86,6 +88,8 @@ type RealFIFO struct {
 
 	// batchSize determines the maximum number of objects we can combine into a batch.
 	batchSize int
+
+	metrics fifoMetrics
 }
 
 var (
@@ -169,6 +173,7 @@ func (f *RealFIFO) addToItems_locked(deltaActionType DeltaType, skipTransform bo
 		Object: obj,
 	})
 	f.cond.Broadcast()
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 
 	return nil
 }
@@ -244,6 +249,7 @@ func (f *RealFIFO) Pop(process PopProcessFunc) (interface{}, error) {
 	if f.initialPopulationCount > 0 {
 		f.initialPopulationCount--
 	}
+	f.metrics.numberOfQueuedItem.Set(float64(len(f.items)))
 
 	// Only log traces if the queue depth is greater than 10 and it takes more than
 	// 100 milliseconds to process one item from the queue.
@@ -522,5 +528,6 @@ func NewRealFIFOWithOptions(opts RealFIFOOptions) *RealFIFO {
 	}
 
 	f.cond.L = &f.lock
+	f.metrics.numberOfQueuedItem.reporter = opts.reportLength
 	return f
 }
