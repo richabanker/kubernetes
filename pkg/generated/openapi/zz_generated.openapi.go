@@ -7750,7 +7750,7 @@ func schema_k8sio_api_apps_v1_ControllerRevision(ref common.ReferenceCallback) c
 						},
 					},
 				},
-				Required: []string{"revision"},
+				Required: []string{"data"},
 			},
 		},
 		Dependencies: []string{
@@ -7903,7 +7903,6 @@ func schema_k8sio_api_apps_v1_DaemonSetCondition(ref common.ReferenceCallback) c
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -8247,7 +8246,6 @@ func schema_k8sio_api_apps_v1_DeploymentCondition(ref common.ReferenceCallback) 
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -8599,7 +8597,6 @@ func schema_k8sio_api_apps_v1_ReplicaSetCondition(ref common.ReferenceCallback) 
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -8959,7 +8956,6 @@ func schema_k8sio_api_apps_v1_StatefulSetCondition(ref common.ReferenceCallback)
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -9048,6 +9044,7 @@ func schema_k8sio_api_apps_v1_StatefulSetPersistentVolumeClaimRetentionPolicy(re
 					"whenDeleted": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WhenDeleted specifies what happens to PVCs created from StatefulSet VolumeClaimTemplates when the StatefulSet is deleted. The default policy of `Retain` causes PVCs to not be affected by StatefulSet deletion. The `Delete` policy causes those PVCs to be deleted.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -9055,11 +9052,13 @@ func schema_k8sio_api_apps_v1_StatefulSetPersistentVolumeClaimRetentionPolicy(re
 					"whenScaled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WhenScaled specifies what happens to PVCs created from StatefulSet VolumeClaimTemplates when the StatefulSet is scaled down. The default policy of `Retain` causes PVCs to not be affected by a scaledown. The `Delete` policy causes the associated PVCs for any excess pods above the replica count to be deleted.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
+				Required: []string{"whenDeleted", "whenScaled"},
 			},
 		},
 	}
@@ -9503,7 +9502,6 @@ func schema_k8sio_api_apps_v1beta1_DeploymentCondition(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -9943,7 +9941,6 @@ func schema_k8sio_api_apps_v1beta1_Scale(ref common.ReferenceCallback) common.Op
 						},
 					},
 				},
-				Required: []string{"status"},
 			},
 		},
 		Dependencies: []string{
@@ -10010,7 +10007,6 @@ func schema_k8sio_api_apps_v1beta1_ScaleStatus(ref common.ReferenceCallback) com
 						},
 					},
 				},
-				Required: []string{"replicas"},
 			},
 		},
 	}
@@ -10110,7 +10106,6 @@ func schema_k8sio_api_apps_v1beta1_StatefulSetCondition(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -10197,6 +10192,7 @@ func schema_k8sio_api_apps_v1beta1_StatefulSetPersistentVolumeClaimRetentionPoli
 					"whenDeleted": {
 						SchemaProps: spec.SchemaProps{
 							Description: "whenDeleted specifies what happens to PVCs created from StatefulSet VolumeClaimTemplates when the StatefulSet is deleted. The default policy of `Retain` causes PVCs to not be affected by StatefulSet deletion. The `Delete` policy causes those PVCs to be deleted.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -10204,11 +10200,13 @@ func schema_k8sio_api_apps_v1beta1_StatefulSetPersistentVolumeClaimRetentionPoli
 					"whenScaled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "whenScaled specifies what happens to PVCs created from StatefulSet VolumeClaimTemplates when the StatefulSet is scaled down. The default policy of `Retain` causes PVCs to not be affected by a scaledown. The `Delete` policy causes the associated PVCs for any excess pods above the replica count to be deleted.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
+				Required: []string{"whenDeleted", "whenScaled"},
 			},
 		},
 	}
@@ -10491,7 +10489,7 @@ func schema_k8sio_api_apps_v1beta2_ControllerRevision(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"revision"},
+				Required: []string{"data"},
 			},
 		},
 		Dependencies: []string{
@@ -10644,7 +10642,6 @@ func schema_k8sio_api_apps_v1beta2_DaemonSetCondition(ref common.ReferenceCallba
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -10987,7 +10984,6 @@ func schema_k8sio_api_apps_v1beta2_DeploymentCondition(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -11338,7 +11334,6 @@ func schema_k8sio_api_apps_v1beta2_ReplicaSetCondition(ref common.ReferenceCallb
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -11646,7 +11641,6 @@ func schema_k8sio_api_apps_v1beta2_Scale(ref common.ReferenceCallback) common.Op
 						},
 					},
 				},
-				Required: []string{"status"},
 			},
 		},
 		Dependencies: []string{
@@ -11718,7 +11712,6 @@ func schema_k8sio_api_apps_v1beta2_ScaleStatus(ref common.ReferenceCallback) com
 						},
 					},
 				},
-				Required: []string{"replicas"},
 			},
 		},
 	}
@@ -11818,7 +11811,6 @@ func schema_k8sio_api_apps_v1beta2_StatefulSetCondition(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"type", "status"},
 			},
 		},
 		Dependencies: []string{
@@ -11905,6 +11897,7 @@ func schema_k8sio_api_apps_v1beta2_StatefulSetPersistentVolumeClaimRetentionPoli
 					"whenDeleted": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WhenDeleted specifies what happens to PVCs created from StatefulSet VolumeClaimTemplates when the StatefulSet is deleted. The default policy of `Retain` causes PVCs to not be affected by StatefulSet deletion. The `Delete` policy causes those PVCs to be deleted.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -11912,11 +11905,13 @@ func schema_k8sio_api_apps_v1beta2_StatefulSetPersistentVolumeClaimRetentionPoli
 					"whenScaled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "WhenScaled specifies what happens to PVCs created from StatefulSet VolumeClaimTemplates when the StatefulSet is scaled down. The default policy of `Retain` causes PVCs to not be affected by a scaledown. The `Delete` policy causes the associated PVCs for any excess pods above the replica count to be deleted.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
+				Required: []string{"whenDeleted", "whenScaled"},
 			},
 		},
 	}
