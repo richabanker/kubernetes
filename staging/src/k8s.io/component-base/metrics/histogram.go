@@ -170,7 +170,10 @@ func (v *HistogramVec) initializeDeprecatedMetric() {
 // has been registered to a metrics registry.
 func (v *HistogramVec) WithLabelValues(lvs ...string) ObserverMetric {
 	if !v.IsCreated() {
-		return noop
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			return noop
+		}
 	}
 
 	// Initialize label allow lists if not already initialized
@@ -195,7 +198,10 @@ func (v *HistogramVec) WithLabelValues(lvs ...string) ObserverMetric {
 // been registered to a metrics registry.
 func (v *HistogramVec) With(labels map[string]string) ObserverMetric {
 	if !v.IsCreated() {
-		return noop
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			return noop
+		}
 	}
 
 	// Initialize label allow lists if not already initialized

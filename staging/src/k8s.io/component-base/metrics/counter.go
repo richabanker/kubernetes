@@ -198,7 +198,10 @@ func (v *CounterVec) initializeDeprecatedMetric() {
 // has been registered to a metrics registry.
 func (v *CounterVec) WithLabelValues(lvs ...string) CounterMetric {
 	if !v.IsCreated() {
-		return noop // return no-op counter
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			return noop // return no-op counter
+		}
 	}
 
 	// Initialize label allow lists if not already initialized
@@ -224,7 +227,10 @@ func (v *CounterVec) WithLabelValues(lvs ...string) CounterMetric {
 // been registered to a metrics registry.
 func (v *CounterVec) With(labels map[string]string) CounterMetric {
 	if !v.IsCreated() {
-		return noop // return no-op counter
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			return noop // return no-op counter
+		}
 	}
 
 	v.initializeLabelAllowListsOnce.Do(func() {

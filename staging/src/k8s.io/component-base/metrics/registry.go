@@ -141,6 +141,19 @@ type KubeRegistry interface {
 	Registerer() prometheus.Registerer
 	// Gatherer exposes the underlying prometheus gatherer
 	Gatherer() prometheus.Gatherer
+	// EnableDeferredCreation puts the registry into deferred mode.
+	// While deferred, MustRegister and Register store metrics without
+	// creating the underlying prometheus objects. This allows
+	// feature-gate-dependent options (e.g. native histograms) to be
+	// configured before any metric is materialized.
+	EnableDeferredCreation()
+	// FinalizeDeferredMetrics creates all metrics that were deferred
+	// during registration and registers them with the underlying
+	// prometheus registry. After this call, subsequent MustRegister and
+	// Register calls create metrics immediately. It is safe to call
+	// multiple times; calls after the first are no-ops. Gather also
+	// calls this automatically as a safety net.
+	FinalizeDeferredMetrics()
 }
 
 // kubeRegistry is a wrapper around a prometheus registry-type object. Upon initialization
@@ -155,6 +168,12 @@ type kubeRegistry struct {
 	stableCollectorsLock sync.RWMutex
 	resetLock            sync.RWMutex
 	resettables          []resettable
+
+	// deferLock guards deferredMode and the pending slices.
+	deferLock         sync.Mutex
+	deferredMode      bool
+	pendingCollectors []Registerable    // metrics deferred from MustRegister/Register
+	pendingCustom     []StableCollector // metrics deferred from CustomMustRegister/CustomRegister
 }
 
 // Register registers a new Collector to be included in metrics
@@ -163,6 +182,14 @@ type kubeRegistry struct {
 // already registered Collectors — do not fulfill the consistency and
 // uniqueness criteria described in the documentation of metric.Desc.
 func (kr *kubeRegistry) Register(c Registerable) error {
+	kr.deferLock.Lock()
+	if kr.deferredMode {
+		kr.pendingCollectors = append(kr.pendingCollectors, c)
+		kr.deferLock.Unlock()
+		return nil
+	}
+	kr.deferLock.Unlock()
+
 	if c.Create(&kr.version) {
 		defer kr.addResettable(c)
 		return kr.PromRegistry.Register(c)
@@ -186,6 +213,14 @@ func (kr *kubeRegistry) Gatherer() prometheus.Gatherer {
 // Collectors and panics upon the first registration that causes an
 // error.
 func (kr *kubeRegistry) MustRegister(cs ...Registerable) {
+	kr.deferLock.Lock()
+	if kr.deferredMode {
+		kr.pendingCollectors = append(kr.pendingCollectors, cs...)
+		kr.deferLock.Unlock()
+		return
+	}
+	kr.deferLock.Unlock()
+
 	metrics := make([]prometheus.Collector, 0, len(cs))
 	for _, c := range cs {
 		if c.Create(&kr.version) {
@@ -200,6 +235,14 @@ func (kr *kubeRegistry) MustRegister(cs ...Registerable) {
 
 // CustomRegister registers a new custom collector.
 func (kr *kubeRegistry) CustomRegister(c StableCollector) error {
+	kr.deferLock.Lock()
+	if kr.deferredMode {
+		kr.pendingCustom = append(kr.pendingCustom, c)
+		kr.deferLock.Unlock()
+		return nil
+	}
+	kr.deferLock.Unlock()
+
 	kr.trackStableCollectors(c)
 	defer kr.addResettable(c)
 	if c.Create(&kr.version, c) {
@@ -212,6 +255,14 @@ func (kr *kubeRegistry) CustomRegister(c StableCollector) error {
 // StableCollectors and panics upon the first registration that causes an
 // error.
 func (kr *kubeRegistry) CustomMustRegister(cs ...StableCollector) {
+	kr.deferLock.Lock()
+	if kr.deferredMode {
+		kr.pendingCustom = append(kr.pendingCustom, cs...)
+		kr.deferLock.Unlock()
+		return
+	}
+	kr.deferLock.Unlock()
+
 	kr.trackStableCollectors(cs...)
 	collectors := make([]prometheus.Collector, 0, len(cs))
 	for _, c := range cs {
@@ -262,8 +313,47 @@ func (kr *kubeRegistry) Unregister(collector Collector) bool {
 // for valid exposition. As an exception to the strict consistency
 // requirements described for metric.Desc, Gather will tolerate
 // different sets of label names for metrics of the same metric family.
+//
+// If the registry is still in deferred mode, Gather finalizes all
+// pending metrics first so that they are included in the result.
 func (kr *kubeRegistry) Gather() ([]*dto.MetricFamily, error) {
+	kr.FinalizeDeferredMetrics()
 	return kr.PromRegistry.Gather()
+}
+
+// EnableDeferredCreation switches the registry into deferred mode.
+func (kr *kubeRegistry) EnableDeferredCreation() {
+	kr.deferLock.Lock()
+	defer kr.deferLock.Unlock()
+	kr.deferredMode = true
+}
+
+// FinalizeDeferredMetrics processes all deferred metric registrations.
+// It creates the underlying prometheus objects for every metric that was
+// stored while the registry was in deferred mode, registers them, and
+// disables deferred mode so future registrations take effect immediately.
+// It is safe to call multiple times; calls after the first are no-ops.
+func (kr *kubeRegistry) FinalizeDeferredMetrics() {
+	kr.deferLock.Lock()
+	if !kr.deferredMode {
+		kr.deferLock.Unlock()
+		return
+	}
+	pending := kr.pendingCollectors
+	pendingCustom := kr.pendingCustom
+	kr.pendingCollectors = nil
+	kr.pendingCustom = nil
+	kr.deferredMode = false
+	kr.deferLock.Unlock()
+
+	// Now that deferred mode is off, these calls go through the
+	// normal Create-and-register path.
+	if len(pending) > 0 {
+		kr.MustRegister(pending...)
+	}
+	if len(pendingCustom) > 0 {
+		kr.CustomMustRegister(pendingCustom...)
+	}
 }
 
 // trackHiddenCollector stores all hidden collectors.

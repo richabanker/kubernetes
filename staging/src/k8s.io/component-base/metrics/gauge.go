@@ -138,10 +138,13 @@ func (v *GaugeVec) initializeDeprecatedMetric() {
 
 func (v *GaugeVec) WithLabelValuesChecked(lvs ...string) (GaugeMetric, error) {
 	if !v.IsCreated() {
-		if v.IsHidden() {
-			return noop, nil
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			if v.IsHidden() {
+				return noop, nil
+			}
+			return noop, errNotRegistered // return no-op gauge
 		}
-		return noop, errNotRegistered // return no-op gauge
 	}
 
 	// Initialize label allow lists if not already initialized
@@ -205,10 +208,13 @@ func (v *GaugeVec) DeleteLabelValues(lvs ...string) bool {
 
 func (v *GaugeVec) WithChecked(labels map[string]string) (GaugeMetric, error) {
 	if !v.IsCreated() {
-		if v.IsHidden() {
-			return noop, nil
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			if v.IsHidden() {
+				return noop, nil
+			}
+			return noop, errNotRegistered // return no-op gauge
 		}
-		return noop, errNotRegistered // return no-op gauge
 	}
 
 	// Initialize label allow lists if not already initialized

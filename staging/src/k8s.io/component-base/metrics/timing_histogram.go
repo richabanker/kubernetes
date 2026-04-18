@@ -164,10 +164,13 @@ func (v *TimingHistogramVec) initializeDeprecatedMetric() {
 // the appropriate vector member and a nil error.
 func (v *TimingHistogramVec) WithLabelValuesChecked(lvs ...string) (GaugeMetric, error) {
 	if !v.IsCreated() {
-		if v.IsHidden() {
-			return noop, nil
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			if v.IsHidden() {
+				return noop, nil
+			}
+			return noop, errNotRegistered
 		}
-		return noop, errNotRegistered
 	}
 
 	// Initialize label allow lists if not already initialized
@@ -214,10 +217,13 @@ func (v *TimingHistogramVec) WithLabelValues(lvs ...string) GaugeMetric {
 // the appropriate vector member and a nil error.
 func (v *TimingHistogramVec) WithChecked(labels map[string]string) (GaugeMetric, error) {
 	if !v.IsCreated() {
-		if v.IsHidden() {
-			return noop, nil
+		triggerDeferredFinalization()
+		if !v.IsCreated() {
+			if v.IsHidden() {
+				return noop, nil
+			}
+			return noop, errNotRegistered
 		}
-		return noop, errNotRegistered
 	}
 
 	// Initialize label allow lists if not already initialized

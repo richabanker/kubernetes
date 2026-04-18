@@ -28,6 +28,29 @@ import (
 	"k8s.io/klog/v2"
 )
 
+var (
+	deferredFinalizeOnce sync.Once
+	deferredFinalizerFn  func()
+)
+
+// SetDeferredFinalizer registers a function that will be called exactly
+// once when a deferred metric is first observed. This is used by the
+// legacyregistry to lazily finalize deferred metrics on first use.
+func SetDeferredFinalizer(f func()) {
+	deferredFinalizerFn = f
+}
+
+// triggerDeferredFinalization calls the registered finalizer exactly once.
+// It is called from Vec observation methods when IsCreated() returns false,
+// ensuring deferred metrics are created before returning noop.
+func triggerDeferredFinalization() {
+	deferredFinalizeOnce.Do(func() {
+		if f := deferredFinalizerFn; f != nil {
+			f()
+		}
+	})
+}
+
 /*
 kubeCollector extends the prometheus.Collector interface to allow customization of the metric
 registration process. Defer metric initialization until Create() is called, which then
