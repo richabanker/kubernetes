@@ -27,6 +27,53 @@ import (
 
 var registerMetrics sync.Once
 
+var (
+	// ensureRegisteredOnce gates the deferred registration callback below.
+	ensureRegisteredOnce sync.Once
+	// ensureRegisteredFn, if set, is invoked exactly once before any rest
+	// client is constructed. Adapter packages (e.g.
+	// k8s.io/component-base/metrics/prometheus/restclient) install this
+	// callback in their init() so that the actual registration with
+	// legacyregistry — and the metric Create() that reads
+	// feature-gate-derived options like NativeHistograms — happens at
+	// runtime rather than at init() time. See EnsureRegistered for the
+	// caller-side contract.
+	ensureRegisteredFn func()
+)
+
+// SetRegisterFn lets a metrics adapter register a callback that will be
+// invoked exactly once before the first rest client is constructed (via
+// EnsureRegistered, called from client-go/rest). This allows the adapter
+// to defer registration that depends on runtime state — most notably
+// feature-gate state — without changing the import-side-effect contract
+// of the adapter package.
+//
+// Typical use, from an adapter's init():
+//
+//	func init() {
+//	    metrics.SetRegisterFn(func() {
+//	        legacyregistry.MustRegister(myHistogramVec, ...)
+//	        metrics.Register(metrics.RegisterOpts{ /* adapters */ })
+//	    })
+//	}
+//
+// The last call wins if SetRegisterFn is called multiple times before
+// EnsureRegistered fires.
+func SetRegisterFn(fn func()) {
+	ensureRegisteredFn = fn
+}
+
+// EnsureRegistered invokes the callback installed via SetRegisterFn (if
+// any) exactly once. It is called from rest client construction so that
+// adapters get a chance to install themselves before any rest method is
+// reachable. Callers should treat it as idempotent; subsequent calls are
+// effectively free.
+func EnsureRegistered() {
+	if ensureRegisteredFn != nil {
+		ensureRegisteredOnce.Do(ensureRegisteredFn)
+	}
+}
+
 // DurationMetric is a measurement of some amount of time.
 type DurationMetric interface {
 	Observe(duration time.Duration)

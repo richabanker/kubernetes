@@ -37,6 +37,7 @@ import (
 	"k8s.io/client-go/features"
 	"k8s.io/client-go/pkg/version"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/tools/metrics"
 	"k8s.io/client-go/transport"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/flowcontrol"
@@ -355,6 +356,12 @@ func RESTClientFor(config *Config) (*RESTClient, error) {
 // Note that the http client takes precedence over the transport values configured.
 // The http client defaults to the `http.DefaultClient` if nil.
 func RESTClientForConfigAndClient(config *Config, httpClient *http.Client) (*RESTClient, error) {
+	// Trigger any deferred metrics registration installed by an adapter
+	// (e.g. component-base/metrics/prometheus/restclient). This is a
+	// no-op if no adapter has registered, and is idempotent for the
+	// subsequent rest client constructions.
+	metrics.EnsureRegistered()
+
 	if config.GroupVersion == nil {
 		return nil, fmt.Errorf("GroupVersion is required when initializing a RESTClient")
 	}

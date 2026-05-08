@@ -221,39 +221,50 @@ var (
 	)
 )
 
+// init installs the registration callback with client-go/tools/metrics. The
+// actual legacyregistry.MustRegister and metrics.Register calls — which
+// trigger Create() and read the NativeHistograms feature gate — are
+// deferred until the first rest client construction (via
+// metrics.EnsureRegistered, called from rest.RESTClientForConfigAndClient).
+//
+// Side-effect import (`import _ "k8s.io/component-base/metrics/prometheus/restclient"`)
+// continues to work as before: importing this package wires up the
+// registration callback; the actual registration fires post-ApplyFeatureGates
+// when the binary first constructs a rest client.
 func init() {
-
-	legacyregistry.MustRegister(requestLatency)
-	legacyregistry.MustRegister(requestSize)
-	legacyregistry.MustRegister(responseSize)
-	legacyregistry.MustRegister(rateLimiterLatency)
-	legacyregistry.MustRegister(requestResult)
-	legacyregistry.MustRegister(requestRetry)
-	legacyregistry.RawMustRegister(execPluginCertTTL)
-	legacyregistry.MustRegister(execPluginCertRotation)
-	legacyregistry.MustRegister(execPluginCalls)
-	legacyregistry.MustRegister(transportCacheEntries)
-	legacyregistry.MustRegister(transportCacheCalls)
-	legacyregistry.MustRegister(transportCAReloads)
-	legacyregistry.MustRegister(transportCertRotationGCCalls)
-	legacyregistry.MustRegister(transportCacheGCCalls)
-	metrics.Register(metrics.RegisterOpts{
-		ClientCertExpiry:             execPluginCertTTLAdapter,
-		ClientCertRotationAge:        &rotationAdapter{m: execPluginCertRotation},
-		RequestLatency:               &latencyAdapter{m: requestLatency},
-		ResolverLatency:              &resolverLatencyAdapter{m: resolverLatency},
-		RequestSize:                  &sizeAdapter{m: requestSize},
-		ResponseSize:                 &sizeAdapter{m: responseSize},
-		RateLimiterLatency:           &latencyAdapter{m: rateLimiterLatency},
-		RequestResult:                &resultAdapter{requestResult},
-		RequestRetry:                 &retryAdapter{requestRetry},
-		ExecPluginCalls:              &callsAdapter{m: execPluginCalls},
-		ExecPluginPolicyCalls:        &policyAdapter{m: execPluginPolicyCalls},
-		TransportCacheEntries:        &transportCacheAdapter{m: transportCacheEntries},
-		TransportCreateCalls:         &transportCacheCallsAdapter{m: transportCacheCalls},
-		TransportCAReloads:           &transportCAReloadsAdapter{m: transportCAReloads},
-		TransportCertRotationGCCalls: &transportCertRotationGCCallsAdapter{m: transportCertRotationGCCalls},
-		TransportCacheGCCalls:        &transportCacheGCCallsAdapter{m: transportCacheGCCalls},
+	metrics.SetRegisterFn(func() {
+		legacyregistry.MustRegister(requestLatency)
+		legacyregistry.MustRegister(requestSize)
+		legacyregistry.MustRegister(responseSize)
+		legacyregistry.MustRegister(rateLimiterLatency)
+		legacyregistry.MustRegister(requestResult)
+		legacyregistry.MustRegister(requestRetry)
+		legacyregistry.RawMustRegister(execPluginCertTTL)
+		legacyregistry.MustRegister(execPluginCertRotation)
+		legacyregistry.MustRegister(execPluginCalls)
+		legacyregistry.MustRegister(transportCacheEntries)
+		legacyregistry.MustRegister(transportCacheCalls)
+		legacyregistry.MustRegister(transportCAReloads)
+		legacyregistry.MustRegister(transportCertRotationGCCalls)
+		legacyregistry.MustRegister(transportCacheGCCalls)
+		metrics.Register(metrics.RegisterOpts{
+			ClientCertExpiry:             execPluginCertTTLAdapter,
+			ClientCertRotationAge:        &rotationAdapter{m: execPluginCertRotation},
+			RequestLatency:               &latencyAdapter{m: requestLatency},
+			ResolverLatency:              &resolverLatencyAdapter{m: resolverLatency},
+			RequestSize:                  &sizeAdapter{m: requestSize},
+			ResponseSize:                 &sizeAdapter{m: responseSize},
+			RateLimiterLatency:           &latencyAdapter{m: rateLimiterLatency},
+			RequestResult:                &resultAdapter{requestResult},
+			RequestRetry:                 &retryAdapter{requestRetry},
+			ExecPluginCalls:              &callsAdapter{m: execPluginCalls},
+			ExecPluginPolicyCalls:        &policyAdapter{m: execPluginPolicyCalls},
+			TransportCacheEntries:        &transportCacheAdapter{m: transportCacheEntries},
+			TransportCreateCalls:         &transportCacheCallsAdapter{m: transportCacheCalls},
+			TransportCAReloads:           &transportCAReloadsAdapter{m: transportCAReloads},
+			TransportCertRotationGCCalls: &transportCertRotationGCCallsAdapter{m: transportCertRotationGCCalls},
+			TransportCacheGCCalls:        &transportCacheGCCallsAdapter{m: transportCacheGCCalls},
+		})
 	})
 }
 
