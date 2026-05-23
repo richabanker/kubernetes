@@ -19,6 +19,7 @@ limitations under the License.
 package subpath
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -172,6 +173,36 @@ func checkSubPathFileEqual(subpath Subpath, bindMountTarget string) (bool, error
 		return false, nil
 	}
 	return true, nil
+}
+
+// package-level variables so tests can replace them without forking the binary.
+var isStaleMountFn = func(path string) bool {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err == nil {
+		return false
+	}
+	if err == syscall.ESTALE || err == syscall.EIO || err == syscall.ENOTCONN {
+		return true
+	}
+	return false
+}
+
+var lazyUnmountFn = func(path string) error {
+	return syscall.Unmount(path, syscall.MNT_DETACH)
+}
+
+// isStaleConnError reports whether err wraps a connection-lost errno that
+// indicates a zombie FUSE/NFS/GlusterFS mount.
+func isStaleConnError(err error) bool {
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		switch errno {
+		case syscall.ENOTCONN, syscall.ESTALE, syscall.EIO:
+			return true
+		}
+	}
+	return false
 }
 
 func getSubpathBindTarget(subpath Subpath) string {
