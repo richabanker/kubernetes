@@ -308,10 +308,7 @@ type podGroupAlgorithmResult struct {
 	// waitingOnPreemption indicates whether this pod group requires or is waiting for preemption to complete.
 	// This can only be set to true when the status is Unschedulable.
 	waitingOnPreemption bool
-}
-
-type placementAlgorithmResult struct {
-	result              podGroupAlgorithmResult
+	// placementCycleState is used to score this result as one placement candidate.
 	placementCycleState fwk.PlacementCycleState
 }
 
@@ -324,6 +321,7 @@ func (sched *Scheduler) podGroupSchedulingDefaultAlgorithm(ctx context.Context, 
 		podResults:          make([]algorithmResult, 0, len(podGroupInfo.QueuedPodInfos)),
 		status:              fwk.NewStatus(fwk.Unschedulable).WithError(errPodGroupUnschedulable),
 		waitingOnPreemption: false,
+		placementCycleState: placementCycleState,
 	}
 
 	logger := klog.FromContext(ctx)
@@ -652,7 +650,7 @@ func (sched *Scheduler) podGroupSchedulingPlacementAlgorithm(ctx context.Context
 	}
 
 	var anyResult *podGroupAlgorithmResult
-	successfulResults := make(map[*fwk.Placement]*placementAlgorithmResult)
+	successfulResults := make(map[*fwk.Placement]*podGroupAlgorithmResult)
 
 	for _, placement := range placements {
 		logger.V(4).Info("Assuming placement in snapshot", "placement", placement.Name)
@@ -675,10 +673,7 @@ func (sched *Scheduler) podGroupSchedulingPlacementAlgorithm(ctx context.Context
 		}
 
 		if result.status.IsSuccess() || result.waitingOnPreemption {
-			successfulResults[placement] = &placementAlgorithmResult{
-				result:              result,
-				placementCycleState: placementCycleState,
-			}
+			successfulResults[placement] = &result
 		}
 	}
 
@@ -691,7 +686,7 @@ func (sched *Scheduler) podGroupSchedulingPlacementAlgorithm(ctx context.Context
 
 	if len(successfulResults) == 1 {
 		for _, result := range successfulResults {
-			return result.result
+			return *result
 		}
 	}
 
@@ -702,14 +697,14 @@ func (sched *Scheduler) podGroupSchedulingPlacementAlgorithm(ctx context.Context
 		}
 	}
 
-	return successfulResults[bestPlacement].result
+	return *successfulResults[bestPlacement]
 }
 
 // findBestPlacement uses PlacementScore plugins to determine the best placement based on the scheduling results.
-func (sched *Scheduler) findBestPlacement(ctx context.Context, schedFwk framework.Framework, podGroupCycleState fwk.PodGroupCycleState, podGroupInfo *framework.QueuedPodGroupInfo, successfulResults map[*fwk.Placement]*placementAlgorithmResult) (*fwk.Placement, *fwk.Status) {
-	placementPodGroupAssignments := makePodGroupAssignments(successfulResults)
+func (sched *Scheduler) findBestPlacement(ctx context.Context, schedFwk framework.Framework, podGroupCycleState fwk.PodGroupCycleState, podGroupInfo *framework.QueuedPodGroupInfo, successfulResults map[*fwk.Placement]*podGroupAlgorithmResult) (*fwk.Placement, *fwk.Status) {
+	placementPodGroupAssignments, placementStates := makePodGroupAssignments(successfulResults)
 
-	scores, status := schedFwk.RunPlacementScorePlugins(ctx, podGroupCycleState, podGroupInfo, placementPodGroupAssignments)
+	scores, status := schedFwk.RunPlacementScorePlugins(ctx, podGroupCycleState, podGroupInfo, placementPodGroupAssignments, placementStates)
 	if !status.IsSuccess() {
 		return nil, status
 	}
@@ -739,17 +734,18 @@ func (sched *Scheduler) findBestPlacement(ctx context.Context, schedFwk framewor
 	return bestScore.Placement, nil
 }
 
-func makePodGroupAssignments(successfulResults map[*fwk.Placement]*placementAlgorithmResult) []*fwk.PodGroupAssignments {
+func makePodGroupAssignments(successfulResults map[*fwk.Placement]*podGroupAlgorithmResult) ([]*fwk.PodGroupAssignments, []fwk.PlacementCycleState) {
 	placementPodGroupAssignments := make([]*fwk.PodGroupAssignments, 0, len(successfulResults))
+	placementStates := make([]fwk.PlacementCycleState, 0, len(successfulResults))
 	for placement, result := range successfulResults {
-		proposedAssignments := makeProposedAssignments(&result.result)
+		proposedAssignments := makeProposedAssignments(result)
 		placementPodGroupAssignments = append(placementPodGroupAssignments, &fwk.PodGroupAssignments{
 			Placement:           placement,
 			ProposedAssignments: proposedAssignments,
-			PlacementCycleState: result.placementCycleState,
 		})
+		placementStates = append(placementStates, result.placementCycleState)
 	}
-	return placementPodGroupAssignments
+	return placementPodGroupAssignments, placementStates
 }
 
 // makeProposedAssignments builds a list of proposedAssignments from the result of a pod group scheduling attempt.

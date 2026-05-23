@@ -2430,6 +2430,7 @@ func TestPodGroupSchedulingPlacementAlgorithm(t *testing.T) {
 					algorithmResult{},
 					ScheduleResult{},
 					fwk.Status{}),
+				cmpopts.IgnoreFields(podGroupAlgorithmResult{}, "placementCycleState"),
 				cmpopts.IgnoreFields(algorithmResult{}, "podCtx", "schedulingDuration"),
 				statusCmpOpt,
 			}
