@@ -159,6 +159,12 @@ func prepareSubpathTarget(mounter mount.Interface, subpath Subpath) (bool, strin
 	return false, bindPathTarget, nil
 }
 
+// lazyUnmountFn is a package-level variable so tests can replace it without
+// forking the binary.
+var lazyUnmountFn = func(path string) error {
+	return syscall.Unmount(path, syscall.MNT_DETACH)
+}
+
 func checkSubPathFileEqual(subpath Subpath, bindMountTarget string) (bool, error) {
 	s, err := os.Lstat(subpath.Path)
 	if err != nil {
