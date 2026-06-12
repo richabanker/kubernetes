@@ -2296,6 +2296,7 @@ func (kl *Kubelet) SyncPod(ctx context.Context, updateType kubetypes.SyncPodType
 			// This only triggers if the sync actually attempted a pull - if the sync didn't pull due to a backoff it won't trigger again.
 			if errors.Is(r.Error, images.ErrImagePull) {
 				hasPullFailures = true
+				break
 			}
 		}
 		if hasPullFailures {
