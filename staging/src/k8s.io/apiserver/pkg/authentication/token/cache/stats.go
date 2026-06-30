@@ -66,11 +66,12 @@ var (
 
 var registerMetricsOnce sync.Once
 
-// RegisterMetrics registers the token cache metrics with the legacy registry.
-// It must be called from component setup after metric feature gates (e.g.
-// NativeHistograms) have been applied, rather than from an init() function, so
-// that the gates are honored when the histogram metric is created.
-func RegisterMetrics() {
+// registerMetrics registers the token cache metrics with the legacy registry on
+// first use, rather than from an init() function, so that metric feature gates
+// (e.g. NativeHistograms) have been applied before the histogram metric is
+// created. It is safe to call on every request; registration happens at most
+// once.
+func registerMetrics() {
 	registerMetricsOnce.Do(func() {
 		legacyregistry.MustRegister(
 			requestLatency,

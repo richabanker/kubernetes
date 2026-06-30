@@ -28,11 +28,12 @@ type registerables []compbasemetrics.Registerable
 
 var registerMetricsOnce sync.Once
 
-// RegisterMetrics registers the delegated authentication metrics with the legacy
-// registry. It must be called from component setup after metric feature gates
-// (e.g. NativeHistograms) have been applied, rather than from an init() function,
-// so that the gates are honored when the histogram metric is created.
-func RegisterMetrics() {
+// registerMetrics registers the delegated authentication metrics with the legacy
+// registry on first use, rather than from an init() function, so that metric
+// feature gates (e.g. NativeHistograms) have been applied before the histogram
+// metric is created. It is safe to call on every request; registration happens
+// at most once.
+func registerMetrics() {
 	registerMetricsOnce.Do(func() {
 		for _, metric := range metrics {
 			legacyregistry.MustRegister(metric)
@@ -68,10 +69,12 @@ var (
 
 // RecordRequestTotal increments the total number of requests for the delegated authentication.
 func RecordRequestTotal(ctx context.Context, code string) {
+	registerMetrics()
 	requestTotal.WithContext(ctx).WithLabelValues(code).Inc()
 }
 
 // RecordRequestLatency measures request latency in seconds for the delegated authentication. Broken down by status code.
 func RecordRequestLatency(ctx context.Context, code string, latency float64) {
+	registerMetrics()
 	requestLatency.WithContext(ctx).WithLabelValues(code).Observe(latency)
 }

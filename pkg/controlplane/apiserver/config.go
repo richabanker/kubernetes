@@ -31,9 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/apiserver/pkg/authentication/authenticatorfactory"
-	x509authenticator "k8s.io/apiserver/pkg/authentication/request/x509"
-	tokencache "k8s.io/apiserver/pkg/authentication/token/cache"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"k8s.io/apiserver/pkg/endpoints/discovery/aggregated"
 	openapinamer "k8s.io/apiserver/pkg/endpoints/openapi"
@@ -306,9 +303,6 @@ func CreateConfig(
 	metricsfeatures.ApplyFeatureGates(utilfeature.DefaultFeatureGate)
 	opts.Metrics.Apply()
 	serviceaccount.RegisterMetrics()
-	authenticatorfactory.RegisterMetrics()
-	x509authenticator.RegisterMetrics()
-	tokencache.RegisterMetrics()
 
 	config := &Config{
 		Generic: genericConfig,

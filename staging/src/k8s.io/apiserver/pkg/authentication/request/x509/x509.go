@@ -75,11 +75,12 @@ var clientCertificateExpirationHistogram = metrics.NewHistogram(
 
 var registerMetricsOnce sync.Once
 
-// RegisterMetrics registers the x509 authentication metrics with the legacy
-// registry. It must be called from component setup after metric feature gates
-// (e.g. NativeHistograms) have been applied, rather than from an init() function,
-// so that the gates are honored when the histogram metric is created.
-func RegisterMetrics() {
+// registerMetrics registers the x509 authentication metrics with the legacy
+// registry on first use, rather than from an init() function, so that metric
+// feature gates (e.g. NativeHistograms) have been applied before the histogram
+// metric is created. It is safe to call on every request; registration happens
+// at most once.
+func registerMetrics() {
 	registerMetricsOnce.Do(func() {
 		legacyregistry.MustRegister(clientCertificateExpirationHistogram)
 	})
@@ -189,6 +190,7 @@ func (a *Authenticator) AuthenticateRequest(req *http.Request) (*authenticator.R
 					- for the step 3, see: staging/src/k8s.io/client-go/transport/transport.go
 	*/
 
+	registerMetrics()
 	remaining := req.TLS.PeerCertificates[0].NotAfter.Sub(time.Now())
 	clientCertificateExpirationHistogram.WithContext(req.Context()).Observe(remaining.Seconds())
 	chains, err := req.TLS.PeerCertificates[0].Verify(optsCopy)
