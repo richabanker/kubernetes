@@ -17,6 +17,7 @@ limitations under the License.
 package validation
 
 import (
+	"sync"
 	"time"
 
 	"k8s.io/component-base/metrics"
@@ -45,8 +46,16 @@ var Metrics ValidationMetrics = &validationMetrics{
 	}),
 }
 
-func init() {
-	legacyregistry.MustRegister(Metrics.(*validationMetrics).RatchetingTime)
+var registerMetricsOnce sync.Once
+
+// RegisterMetrics registers the CRD validation metrics with the legacy registry.
+// It must be called from apiextensions server setup after metric feature gates
+// (e.g. NativeHistograms) have been applied, rather than from an init() function,
+// so that the gates are honored when the histogram metric is created.
+func RegisterMetrics() {
+	registerMetricsOnce.Do(func() {
+		legacyregistry.MustRegister(Metrics.(*validationMetrics).RatchetingTime)
+	})
 }
 
 type validationMetrics struct {
