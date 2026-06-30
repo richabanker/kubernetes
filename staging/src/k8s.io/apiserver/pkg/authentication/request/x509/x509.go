@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	asn1util "k8s.io/apimachinery/pkg/apis/asn1"
@@ -72,8 +73,16 @@ var clientCertificateExpirationHistogram = metrics.NewHistogram(
 	},
 )
 
-func init() {
-	legacyregistry.MustRegister(clientCertificateExpirationHistogram)
+var registerMetricsOnce sync.Once
+
+// RegisterMetrics registers the x509 authentication metrics with the legacy
+// registry. It must be called from component setup after metric feature gates
+// (e.g. NativeHistograms) have been applied, rather than from an init() function,
+// so that the gates are honored when the histogram metric is created.
+func RegisterMetrics() {
+	registerMetricsOnce.Do(func() {
+		legacyregistry.MustRegister(clientCertificateExpirationHistogram)
+	})
 }
 
 // UserConversion defines an interface for extracting user info from a client certificate chain

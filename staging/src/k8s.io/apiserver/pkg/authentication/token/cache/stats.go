@@ -18,6 +18,7 @@ package cache
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"k8s.io/component-base/metrics"
@@ -63,13 +64,21 @@ var (
 	)
 )
 
-func init() {
-	legacyregistry.MustRegister(
-		requestLatency,
-		requestCount,
-		fetchCount,
-		activeFetchCount,
-	)
+var registerMetricsOnce sync.Once
+
+// RegisterMetrics registers the token cache metrics with the legacy registry.
+// It must be called from component setup after metric feature gates (e.g.
+// NativeHistograms) have been applied, rather than from an init() function, so
+// that the gates are honored when the histogram metric is created.
+func RegisterMetrics() {
+	registerMetricsOnce.Do(func() {
+		legacyregistry.MustRegister(
+			requestLatency,
+			requestCount,
+			fetchCount,
+			activeFetchCount,
+		)
+	})
 }
 
 const (
