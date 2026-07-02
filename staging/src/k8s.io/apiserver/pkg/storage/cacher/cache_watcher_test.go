@@ -238,7 +238,7 @@ func TestCacheWatcherStoppedInAnotherGoroutine(t *testing.T) {
 	// After that, verifies the cacheWatcher.process goroutine works correctly.
 	for i := 0; i < maxRetriesToProduceTheRaceCondition; i++ {
 		w = newCacheWatcher(2, filter, emptyFunc, storage.APIObjectVersioner{}, deadline, false, schema.GroupResource{Resource: "pods"}, metrics.NewNoopWatcherMetricsObservers(), "")
-		w.input <- &watchCacheEvent{Object: &v1.Pod{}, ResourceVersion: uint64(i + 1)}
+		w.input <- inputEvent{event: &watchCacheEvent{Object: &v1.Pod{}, ResourceVersion: uint64(i + 1)}, enqueuedAt: time.Now()}
 		ctx, cancel := context.WithDeadline(context.Background(), deadline)
 		defer cancel()
 		go w.processInterval(ctx, intervalFromEvents(nil), 0)
@@ -665,7 +665,7 @@ func TestBookmarkAfterResourceVersionWatchers(t *testing.T) {
 	}
 }
 
-func TestCacheWatcherDispatchDurationMetric(t *testing.T) {
+func TestCacheWatcherDispatchStageMetric(t *testing.T) {
 	metrics.Register()
 	legacyregistry.Reset()
 	t.Cleanup(legacyregistry.Reset)
@@ -688,13 +688,25 @@ func TestCacheWatcherDispatchDurationMetric(t *testing.T) {
 	<-w.ResultChan()
 	w.Stop()
 
+	// The event is injected directly via add(), bypassing the reflector and
+	// dispatcher, so only the post-fanout (per-watcher) stages plus the total
+	// are observed. The pre-fanout stages (propagation/cache_ingest/
+	// incoming_queue/fanout) have no timestamps and are skipped; terminated is
+	// never hit. Pre-resolved children still report a count of 0.
 	expected := `
-# HELP apiserver_watch_cache_watcher_dispatch_duration_seconds [ALPHA] Histogram of latency from the time an event is received by the watch cache to when it is dispatched to a watcher's output channel, broken by resource type and outcome.
-# TYPE apiserver_watch_cache_watcher_dispatch_duration_seconds histogram
-apiserver_watch_cache_watcher_dispatch_duration_seconds_count{group="",outcome="delivered",resource="pods"} 1
-apiserver_watch_cache_watcher_dispatch_duration_seconds_count{group="",outcome="terminated",resource="pods"} 0
+# HELP apiserver_watch_cache_dispatch_stage_duration_seconds [ALPHA] Histogram of watch event dispatch latency broken by resource type and pipeline stage. The additive stages (propagation, cache_ingest, incoming_queue, fanout, watcher_queue, encode, handoff) partition the delivery path; the 'total' stage is the end-to-end latency of a delivered event and 'terminated' is how long an event waited before an unresponsive watcher was closed.
+# TYPE apiserver_watch_cache_dispatch_stage_duration_seconds histogram
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="cache_ingest"} 0
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="encode"} 1
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="fanout"} 0
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="handoff"} 1
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="incoming_queue"} 0
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="propagation"} 0
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="terminated"} 0
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="total"} 1
+apiserver_watch_cache_dispatch_stage_duration_seconds_count{group="",resource="pods",stage="watcher_queue"} 1
 `
-	if err := testutil.GatherAndCompare(gatherWithoutDurations(), strings.NewReader(expected), "apiserver_watch_cache_watcher_dispatch_duration_seconds"); err != nil {
+	if err := testutil.GatherAndCompare(gatherWithoutDurations(), strings.NewReader(expected), "apiserver_watch_cache_dispatch_stage_duration_seconds"); err != nil {
 		t.Fatal(err)
 	}
 }

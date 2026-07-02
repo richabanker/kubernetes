@@ -968,6 +968,10 @@ func setCachingObjects(event *watchCacheEvent, versioner storage.Versioner) {
 }
 
 func (c *Cacher) dispatchEvent(event *watchCacheEvent) {
+	// Mark the start of fan-out. This is the last shared, pre-fanout timestamp;
+	// the shallow copy made below for non-bookmark events preserves it, so all
+	// watchers see the same dispatched time.
+	event.timeline.dispatched = c.clock.Now()
 	c.startDispatching(event)
 	defer c.finishDispatching()
 	// Watchers stopped after startDispatching will be delayed to finishDispatching,
