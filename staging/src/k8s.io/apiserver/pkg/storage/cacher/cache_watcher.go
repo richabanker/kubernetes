@@ -563,9 +563,12 @@ func (c *cacheWatcher) observeDispatchMetrics(event *watchCacheEvent, builtAt, s
 	if event.Type == watch.Bookmark || sentAt.IsZero() || event.RecordTime.IsZero() {
 		return
 	}
-	if !event.CacheReceived.IsZero() {
-		c.watcherMetrics.ObserveStage(metrics.StageStorageToCache, event.CacheReceived.Sub(event.RecordTime))
-	}
-	c.watcherMetrics.ObserveStage(metrics.StageCacheToWatcher, sentAt.Sub(builtAt))
-	c.watcherMetrics.ObserveStage(metrics.StageTotal, sentAt.Sub(event.RecordTime))
+	// Complete the per-watcher tail of the event's shared timeline, then emit all
+	// stages. PointStorageDecoded is taken from RecordTime (which is also set on
+	// events injected directly, e.g. in tests, that bypass processEvent).
+	tl := event.timeline
+	tl.MarkAt(metrics.PointStorageDecoded, event.RecordTime)
+	tl.MarkAt(metrics.PointEventBuilt, builtAt)
+	tl.MarkAt(metrics.PointSentToClient, sentAt)
+	c.watcherMetrics.ObserveTimeline(&tl)
 }
